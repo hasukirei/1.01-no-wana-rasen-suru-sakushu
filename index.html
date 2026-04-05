@@ -2,15 +2,13 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <!-- スマホのダブルタップズームを無効化 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>1.01の罠 — 螺旋する搾取 —</title>
-    <!-- Google Identity Services Library -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         body, html { margin: 0; padding: 0; min-height: 100%; background-color: black; color: white; font-family: sans-serif; overflow-x: hidden; }
         #visibility-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
-        .container { display: flex; width: 100vw; height: 100vh; position: relative; z-index: 10; background: transparent; border-bottom: 2px solid #333; }
+        .container { display: flex; width: 100vw; height: 100vh; position: relative; z-index: 10; background: transparent; }
         .col { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #333; background: transparent; text-shadow: 0 0 5px rgba(0,0,0,1); }
         .col:last-child { border-right: none; }
         .area-top { flex: 0 0 30vh; border-bottom: 2px solid #555; padding: 15px; box-sizing: border-box; background: transparent; overflow-y: auto; }
@@ -21,10 +19,10 @@
         .shop-tabs { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-start; }
         .tab-btn { background: rgba(51, 51, 51, 0.8); color: #ccc; font-size: 0.6rem; padding: 4px 5px; border-radius: 2px; border: 1px solid #555; flex: 1 1 auto; }
         .tab-btn.active { background: #800080; color: white; border-color: #f0f; }
-        #retire-trigger { width: 100%; height: 60px; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.5rem; border-radius: 5px; margin-bottom: 10px; }
+        #retire-trigger { width: 100%; height: 80%; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.8rem; border-radius: 5px; }
         .shop-item { background: rgba(26, 26, 26, 0.9); margin-bottom: 5px; padding: 8px; border: 1px solid #444; cursor: pointer; font-size: 0.75rem; color: #ddd; display: flex; justify-content: space-between; align-items: center; }
         .main-btn-wrapper { display: flex; justify-content: space-between; align-items: center; height: 100%; padding: 0 5%; }
-        .main-btn { width: 48%; height: 60%; border-radius: 10px; border: 2px solid #555; position: relative; z-index: 20; box-shadow: 0 0 15px rgba(0,0,0,0.8); }
+        .main-btn { width: 48%; height: 60%; border-radius: 10px; border: 2px solid #555; position: relative; z-index: 20; }
         #through-btn { background-color: #fff; color: black; font-size: 1.5rem; }
         #reward-btn { color: transparent; border: none; } 
         .status-text { font-size: 0.95rem; line-height: 1.6; color: #eee; }
@@ -32,22 +30,18 @@
         .rank-info b { color: #f0f; font-size: 1.1rem; }
         #log-list { list-style: none; padding: 0; margin: 0; font-size: 0.75rem; }
         .log-entry { border-bottom: 1px dashed #333; padding: 10px 0; color: #bbb; line-height: 1.4; }
-        .log-entry span { color: #f0f; font-weight: bold; }
-        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(17, 17, 17, 0.95); border: 2px solid #f0f; padding: 25px; z-index: 1000; width: 320px; box-shadow: 0 0 30px rgba(128,0,128,0.5); }
-        .reason-item { display: block; margin: 12px 0; cursor: pointer; font-size: 1.1rem; color: #ccc; }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(17, 17, 17, 0.95); border: 2px solid #f0f; padding: 25px; z-index: 1000; width: 320px; }
         .modal-btn { width: 100%; padding: 12px; color: white; margin-top: 10px; font-size: 1.2rem; }
-        footer { background: #111; color: #666; padding: 30px 15px; font-size: 0.75rem; line-height: 1.8; border-top: 1px solid #333; position: relative; z-index: 100; }
-        #sync-status { font-size: 0.65rem; color: #888; margin-top: 5px; }
+        footer { background: #111; color: #666; padding: 30px 15px; font-size: 0.75rem; border-top: 1px solid #333; position: relative; z-index: 100; }
     </style>
 </head>
 <body>
 
     <canvas id="visibility-canvas"></canvas>
 
-    <!-- リタイアモーダル -->
     <div id="retire-modal" class="modal">
         <h3 style="color:#f0f; border:none; text-align:center;">リタイア確認</h3>
-        <p style="font-size:0.8rem; color:#aaa; text-align:center;">すべて（累計・階層含む）を失って逃げますか？</p>
+        <p style="font-size:0.8rem; color:#aaa; text-align:center;">すべてを失って逃げますか？</p>
         <label class="reason-item"><input type="checkbox" name="reason" value="身の危険"> 身の危険を感じた</label>
         <label class="reason-item"><input type="checkbox" name="reason" value="良心"> 良心の呵責</label>
         <label class="reason-item"><input type="checkbox" name="reason" value="満足"> 充分に稼いだ</label>
@@ -60,22 +54,23 @@
         <div class="col">
             <div class="area-top">
                 <button id="retire-trigger">リタイア</button>
-                <!-- Google Login Button -->
                 <div id="g_id_onload"
                      data-client_id="245586344293-jj8m9cj9k7qel20sapbp6g34gf97nfpf.apps.googleusercontent.com"
                      data-callback="handleCredentialResponse"
                      data-auto_prompt="false">
                 </div>
-                <div class="g_id_signin" data-type="standard" data-size="medium" data-theme="dark" data-text="signin" data-shape="rectangular" data-logo_alignment="left"></div>
-                <div id="sync-status">Cloud: 未接続 (ローカル保存中)</div>
+                <div class="g_id_signin" data-type="standard" data-size="small" data-theme="dark" style="margin-top:10px;"></div>
+                <div id="sync-status" style="font-size:0.6rem; color:#888; margin-top:5px;">Cloud: 未接続</div>
             </div>
             <div class="area-bottom">
                 <h3>
                     <span>SHOP (悪意の均衡)</span>
-                    <div class="shop-tabs" id="shop-tabs">
+                    <div class="shop-tabs">
                         <button class="tab-btn active" onclick="switchTab(0)">転生</button>
                         <button class="tab-btn" onclick="switchTab(1)">即増</button>
                         <button class="tab-btn" onclick="switchTab(2)">即減</button>
+                        <button class="tab-btn" onclick="switchTab(3)">増量UP</button>
+                        <button class="tab-btn" onclick="switchTab(4)">抑制</button>
                     </div>
                 </h3>
                 <div id="shop-container"></div>
@@ -115,15 +110,10 @@
         </div>
     </div>
 
-    <!-- プライバシーポリシーセクション -->
     <footer id="footer">
         <div style="max-width: 900px; margin: 0 auto;">
             <h4 style="color: #f0f; border-bottom: 1px solid #444; padding-bottom: 5px;">プライバシーポリシー</h4>
-            <p><strong>1. 取得する情報：</strong> 当アプリは、Googleアカウントによるログイン時、ユーザー識別用の固有IDを取得します。メールアドレス自体を公開することはありません。</p>
-            <p><strong>2. 利用目的：</strong> 取得したIDは、ゲーム進行データ（スコア、履歴等）を同一アカウントの異なる端末間で同期するためにのみ使用します。</p>
-            <p><strong>3. データの管理：</strong> ユーザーデータはブラウザおよびクラウドに保存され、第三者に販売・提供されることは一切ありません。</p>
-            <p><strong>4. 啓蒙の目的：</strong> 本アプリは、特殊詐欺や搾取構造の危険性を社会に周知し、被害を未然に防ぐための教育的啓蒙を目的としています。</p>
-            <p style="color: #888; font-size: 0.65rem; margin-top: 20px;">© 2026 1.01の罠 制作チーム. All Rights Reserved.</p>
+            <p>1. 取得情報：Googleアカウント固有IDのみ。 / 2. 目的：セーブデータ同期。 / 3. 管理：第三者提供なし。 / 4. 啓蒙：本アプリは特殊詐欺等の危険性を啓蒙する教育目的で制作されています。</p>
         </div>
     </footer>
 
@@ -137,7 +127,7 @@
             isNextDeath: false, thruSucc: 0, thruFail: 0,
             currentTab: 0,
             pulseRadius: 100, pulseTarget: 200, pulseSpeed: 1, pulseDir: 1,
-            shopCounts: { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0) },
+            shopCounts: { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) },
             matchPoint: 0, lastMatchTime: Date.now()
         };
 
@@ -153,29 +143,20 @@
             logs: document.getElementById('log-list'),
             matchInfo: document.getElementById('match-info'),
             modal: document.getElementById('retire-modal'),
-            retireTrigger: document.getElementById('retire-trigger'),
-            confirmRetire: document.getElementById('confirm-retire'),
-            cancelRetire: document.getElementById('cancel-retire'),
             syncStatus: document.getElementById('sync-status')
         };
 
-        // Googleログイン後の処理
-        function handleCredentialResponse(response) {
-            console.log("Encoded JWT ID token: " + response.credential);
-            dom.syncStatus.innerText = "Cloud: 同期済み (Google接続中)";
-            // ここで本来はサーバー側にセーブデータを送りますが、
-            // 今回はログイン成功の表示のみ行い、ローカル保存を継続します。
-        }
+        function handleCredentialResponse(r) { dom.syncStatus.innerText = "Cloud: 同期中"; }
 
         function saveGame() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(game));
         }
 
         function loadGame() {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) Object.assign(game, JSON.parse(saved));
-            const savedLogs = localStorage.getItem(LOG_KEY);
-            if (savedLogs) dom.logs.innerHTML = savedLogs;
+            const s = localStorage.getItem(STORAGE_KEY);
+            if (s) Object.assign(game, JSON.parse(s));
+            const l = localStorage.getItem(LOG_KEY);
+            if (l) dom.logs.innerHTML = l;
             updateUI();
             runMatchSimulation();
         }
@@ -189,19 +170,14 @@
 
         function runMatchSimulation() {
             const now = Date.now();
-            const hoursPassed = Math.floor((now - game.lastMatchTime) / (1000 * 60 * 60));
-            if (hoursPassed > 0) {
-                for (let i = 0; i < hoursPassed; i++) {
+            const hrs = Math.floor((now - game.lastMatchTime) / 3600000);
+            if (hrs > 0) {
+                for (let i = 0; i < hrs; i++) {
                     let info = getRankInfo(game.matchPoint);
-                    let myPower = (game.rank * 100) + (game.totalMoney * 0.001);
-                    let win = Math.random() < (0.5 + Math.min(0.3, myPower / 5000)); 
-                    let a = info.r <= 3 ? 25 : 5;
-                    let b = info.r >= 8 ? 60 : 15;
-                    game.matchPoint += win ? a : -b;
-                    if (game.matchPoint < 0) game.matchPoint = 0;
+                    let win = Math.random() < (0.5 + Math.min(0.3, (game.rank * 100) / 5000)); 
+                    game.matchPoint += win ? (info.r <= 3 ? 25 : 5) : (info.r >= 8 ? -60 : -15);
                 }
-                game.lastMatchTime = now;
-                saveGame();
+                game.lastMatchTime = now; saveGame();
             }
             updateRankDisplay();
             setTimeout(runMatchSimulation, 60000); 
@@ -214,7 +190,7 @@
 
         function switchTab(idx) {
             game.currentTab = idx;
-            document.querySelectorAll('.tab-btn').forEach((btn, i) => btn.classList.toggle('active', i === idx));
+            document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
             renderShop();
         }
 
@@ -229,8 +205,7 @@
                 div.innerHTML = `<span>${label} (${currentCost.toLocaleString()})</span><span class="item-count">[${count}]</span>`;
                 div.onclick = () => { 
                     if (game.money >= currentCost) { 
-                        game.money -= currentCost; 
-                        game.shopCounts[tabIdx][itemIdx]++;
+                        game.money -= currentCost; game.shopCounts[tabIdx][itemIdx]++;
                         onClick(); saveGame(); updateUI(); 
                     } 
                 };
@@ -240,9 +215,13 @@
             if (game.currentTab === 0) {
                 createItem(0, 0, "次なる搾取へ", 200000 * Math.pow(2, game.rank), () => { game.rank++; resetSpiral(); });
             } else if (game.currentTab === 1) {
-                createItem(1, 0, "即時報酬UP", 500 * r, () => { game.currentReward += 0.5; game.risk += 5; });
+                for(let i=0; i<10; i++) createItem(1, i, `報酬UP`, 300*(i+1)*r, () => { game.currentReward+=(i+1)*0.05; game.risk+=(i+1)*2; });
             } else if (game.currentTab === 2) {
-                createItem(2, 0, "リスク微減", 1000 * r, () => { game.risk = Math.max(0, game.risk - 1); });
+                for(let i=0; i<10; i++) createItem(2, i, `リスク低減`, 500*(i+1)*r, () => { game.currentReward=Math.max(1, game.currentReward-(i+1)*2); game.risk=Math.max(0, game.risk-(i+1)*0.1); });
+            } else if (game.currentTab === 3) {
+                for(let i=0; i<10; i++) createItem(3, i, `報酬増率+`, 1000*(i+1)*r, () => { game.rewardIncRate+=(i+1)*0.002; game.riskIncRate+=(i+1)*0.05; });
+            } else if (game.currentTab === 4) {
+                for(let i=0; i<10; i++) createItem(4, i, `リスク増率-`, 2000*(i+1)*r, () => { game.rewardIncRate=Math.max(0, game.rewardIncRate-(i+1)*0.01); game.riskIncRate=Math.max(0.01, game.riskIncRate-(i+1)*0.001); });
             }
         }
 
@@ -259,11 +238,9 @@
 
         dom.rewardBtn.onclick = () => {
             if (game.isNextDeath) { processDeath(); return; }
-            let fail = Math.random() * 100 < game.risk;
-            if (fail) { game.isNextDeath = true; game.money += game.currentReward * 0.5; }
+            if (Math.random() * 100 < game.risk) { game.isNextDeath = true; game.money += game.currentReward * 0.5; }
             else { game.money += game.currentReward; game.totalMoney += game.currentReward; }
-            game.currentReward += game.rewardIncRate;
-            game.risk = Math.min(99, game.risk + game.riskIncRate);
+            game.currentReward += game.rewardIncRate; game.risk = Math.min(99, game.risk + game.riskIncRate);
             saveGame(); updateUI();
         };
 
@@ -279,8 +256,7 @@
         }
 
         function processDeath() {
-            const li = document.createElement('li');
-            li.className = 'log-entry';
+            const li = document.createElement('li'); li.className = 'log-entry';
             li.innerHTML = `<span>【破綻】</span> 階層:${game.rank} 報酬:${Math.floor(game.totalMoney).toLocaleString()}`;
             dom.logs.prepend(li);
             localStorage.setItem(LOG_KEY, dom.logs.innerHTML);
@@ -288,23 +264,15 @@
             resetSpiral();
         }
 
-        dom.retireTrigger.onclick = () => dom.modal.style.display = 'block';
-        dom.cancelRetire.onclick = () => dom.modal.style.display = 'none';
-        dom.confirmRetire.onclick = () => {
-            const li = document.createElement('li');
-            li.className = 'log-entry';
-            li.innerHTML = `<span>【自発リタイア】</span> 階層:${game.rank} 完遂`;
-            dom.logs.prepend(li);
-            localStorage.setItem(LOG_KEY, dom.logs.innerHTML);
-            game.money = 0; game.totalMoney = 0; game.rank = 0;
-            resetSpiral();
-            dom.modal.style.display = 'none';
+        document.getElementById('retire-trigger').onclick = () => dom.modal.style.display = 'block';
+        document.getElementById('cancel-retire').onclick = () => dom.modal.style.display = 'none';
+        document.getElementById('confirm-retire').onclick = () => {
+            processDeath(); dom.modal.style.display = 'none';
         };
 
         const canvas = document.getElementById('visibility-canvas'), ctx = canvas.getContext('2d');
         function animate() {
             canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
             game.pulseRadius += game.pulseSpeed * game.pulseDir;
             if (game.pulseRadius > 300 || game.pulseRadius < 100) game.pulseDir *= -1;
             let g = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, game.pulseRadius);
