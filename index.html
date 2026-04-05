@@ -17,7 +17,7 @@
         .shop-tabs { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-start; }
         .tab-btn { background: rgba(51, 51, 51, 0.8); color: #ccc; font-size: 0.6rem; padding: 4px 5px; border-radius: 2px; border: 1px solid #555; flex: 1 1 auto; }
         .tab-btn.active { background: #800080; color: white; border-color: #f0f; }
-        #retire-trigger { width: 100%; height: 80%; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.8rem; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        #retire-trigger { width: 100%; height: 60%; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.8rem; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
         .shop-item { background: rgba(26, 26, 26, 0.9); margin-bottom: 5px; padding: 8px; border: 1px solid #444; cursor: pointer; font-size: 0.75rem; color: #ddd; display: flex; justify-content: space-between; align-items: center; }
         .shop-item:hover { background: rgba(50, 50, 50, 0.9); color: white; }
         .item-count { color: #f0f; font-weight: bold; margin-left: 10px; }
@@ -32,7 +32,11 @@
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(17, 17, 17, 0.95); border: 2px solid #f0f; padding: 25px; z-index: 1000; width: 320px; box-shadow: 0 0 30px rgba(128,0,128,0.5); }
         .reason-item { display: block; margin: 12px 0; cursor: pointer; font-size: 1.1rem; color: #ccc; }
         .modal-btn { width: 100%; padding: 12px; color: white; margin-top: 10px; font-size: 1.2rem; }
+        
+        /* ログインボタン用調整 */
+        #google-sync-container { margin-top: 10px; display: flex; justify-content: center; }
     </style>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -51,7 +55,17 @@
 
     <div class="container">
         <div class="col">
-            <div class="area-top"><button id="retire-trigger">リタイア</button></div>
+            <div class="area-top">
+                <button id="retire-trigger">リタイア</button>
+                <div id="google-sync-container">
+                    <div id="g_id_onload"
+                        data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+                        data-callback="handleCredentialResponse"
+                        data-auto_prompt="false">
+                    </div>
+                    <div class="g_id_signin" data-type="icon" data-shape="circle" data-theme="dark"></div>
+                </div>
+            </div>
             <div class="area-bottom">
                 <h3>
                     <span>SHOP (悪意の均衡)</span>
@@ -126,8 +140,21 @@
             tabs: document.querySelectorAll('.tab-btn')
         };
 
+        // --- 同期用グローバル変数 ---
+        let googleToken = null;
+
+        function handleCredentialResponse(response) {
+            googleToken = response.credential;
+            console.log("Google同期有効");
+            // 必要に応じてここでクラウドからデータをfetchする処理を追加
+        }
+
         function saveGame() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(game));
+            // Googleログイン済みなら同期処理（シミュレート）
+            if (googleToken) {
+                console.log("Cloud Sync: データ送信中...");
+            }
         }
 
         function saveLogs() {
@@ -153,7 +180,7 @@
             game.rewardIncRate = 0.01 + (game.rank * 0.005);
             game.riskIncRate = 0.05 + (game.rank * 0.02);
             game.currentReward = 1.0;
-            game.money = 0; // 初期報酬を0に設定
+            game.money = 0; 
             game.risk = 0;
             game.isNextDeath = false;
             game.thruSucc = 0;
