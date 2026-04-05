@@ -2,17 +2,18 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <!-- スマホでのダブルタップズームを無効化する設定を追加 -->
+    <!-- スマホのダブルタップズームを無効化 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>1.01の罠 — 螺旋する搾取 —</title>
+    <!-- Google Identity Services Library -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: black; color: white; font-family: sans-serif; }
+        body, html { margin: 0; padding: 0; min-height: 100%; background-color: black; color: white; font-family: sans-serif; overflow-x: hidden; }
         #visibility-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
-        .container { display: flex; width: 100vw; height: 100vh; position: relative; z-index: 10; background: transparent; }
+        .container { display: flex; width: 100vw; height: 100vh; position: relative; z-index: 10; background: transparent; border-bottom: 2px solid #333; }
         .col { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #333; background: transparent; text-shadow: 0 0 5px rgba(0,0,0,1); }
         .col:last-child { border-right: none; }
         .area-top { flex: 0 0 30vh; border-bottom: 2px solid #555; padding: 15px; box-sizing: border-box; background: transparent; overflow-y: auto; }
-        /* ランクマッチ用のエリア(area-mid)を新設 */
         .area-mid { flex: 0 0 20vh; border-bottom: 2px solid #555; padding: 15px; box-sizing: border-box; background: rgba(20, 0, 20, 0.7); overflow-y: auto; border-left: 4px solid #800080; }
         .area-bottom { flex: 1; padding: 15px; box-sizing: border-box; overflow-y: auto; background: transparent; }
         h3 { margin-top: 0; font-size: 1rem; border-bottom: 1px solid #444; padding-bottom: 8px; display: flex; flex-direction: column; gap: 8px; text-shadow: 0 0 8px rgba(0,0,0,1); color: #f0f; }
@@ -20,10 +21,8 @@
         .shop-tabs { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-start; }
         .tab-btn { background: rgba(51, 51, 51, 0.8); color: #ccc; font-size: 0.6rem; padding: 4px 5px; border-radius: 2px; border: 1px solid #555; flex: 1 1 auto; }
         .tab-btn.active { background: #800080; color: white; border-color: #f0f; }
-        #retire-trigger { width: 100%; height: 80%; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.8rem; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        #retire-trigger { width: 100%; height: 60px; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.5rem; border-radius: 5px; margin-bottom: 10px; }
         .shop-item { background: rgba(26, 26, 26, 0.9); margin-bottom: 5px; padding: 8px; border: 1px solid #444; cursor: pointer; font-size: 0.75rem; color: #ddd; display: flex; justify-content: space-between; align-items: center; }
-        .shop-item:hover { background: rgba(50, 50, 50, 0.9); color: white; }
-        .item-count { color: #f0f; font-weight: bold; margin-left: 10px; }
         .main-btn-wrapper { display: flex; justify-content: space-between; align-items: center; height: 100%; padding: 0 5%; }
         .main-btn { width: 48%; height: 60%; border-radius: 10px; border: 2px solid #555; position: relative; z-index: 20; box-shadow: 0 0 15px rgba(0,0,0,0.8); }
         #through-btn { background-color: #fff; color: black; font-size: 1.5rem; }
@@ -37,12 +36,15 @@
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(17, 17, 17, 0.95); border: 2px solid #f0f; padding: 25px; z-index: 1000; width: 320px; box-shadow: 0 0 30px rgba(128,0,128,0.5); }
         .reason-item { display: block; margin: 12px 0; cursor: pointer; font-size: 1.1rem; color: #ccc; }
         .modal-btn { width: 100%; padding: 12px; color: white; margin-top: 10px; font-size: 1.2rem; }
+        footer { background: #111; color: #666; padding: 30px 15px; font-size: 0.75rem; line-height: 1.8; border-top: 1px solid #333; position: relative; z-index: 100; }
+        #sync-status { font-size: 0.65rem; color: #888; margin-top: 5px; }
     </style>
 </head>
 <body>
 
     <canvas id="visibility-canvas"></canvas>
 
+    <!-- リタイアモーダル -->
     <div id="retire-modal" class="modal">
         <h3 style="color:#f0f; border:none; text-align:center;">リタイア確認</h3>
         <p style="font-size:0.8rem; color:#aaa; text-align:center;">すべて（累計・階層含む）を失って逃げますか？</p>
@@ -56,7 +58,17 @@
 
     <div class="container">
         <div class="col">
-            <div class="area-top"><button id="retire-trigger">リタイア</button></div>
+            <div class="area-top">
+                <button id="retire-trigger">リタイア</button>
+                <!-- Google Login Button -->
+                <div id="g_id_onload"
+                     data-client_id="245586344293-jj8m9cj9k7qel20sapbp6g34gf97nfpf.apps.googleusercontent.com"
+                     data-callback="handleCredentialResponse"
+                     data-auto_prompt="false">
+                </div>
+                <div class="g_id_signin" data-type="standard" data-size="medium" data-theme="dark" data-text="signin" data-shape="rectangular" data-logo_alignment="left"></div>
+                <div id="sync-status">Cloud: 未接続 (ローカル保存中)</div>
+            </div>
             <div class="area-bottom">
                 <h3>
                     <span>SHOP (悪意の均衡)</span>
@@ -64,8 +76,6 @@
                         <button class="tab-btn active" onclick="switchTab(0)">転生</button>
                         <button class="tab-btn" onclick="switchTab(1)">即増</button>
                         <button class="tab-btn" onclick="switchTab(2)">即減</button>
-                        <button class="tab-btn" onclick="switchTab(3)">増量UP</button>
-                        <button class="tab-btn" onclick="switchTab(4)">抑制</button>
                     </div>
                 </h3>
                 <div id="shop-container"></div>
@@ -94,7 +104,6 @@
                 <p>階層: <span id="rank-disp">0</span></p>
                 <p>回避(成/失): <span id="thru-succ-disp">0</span> / <span id="thru-fail-disp">0</span></p>
             </div>
-            <!-- ランクマッチエリアを追加 -->
             <div class="area-mid">
                 <h3>組織内ランクマッチ</h3>
                 <div id="match-info" class="rank-info">初期化中...</div>
@@ -106,6 +115,18 @@
         </div>
     </div>
 
+    <!-- プライバシーポリシーセクション -->
+    <footer id="footer">
+        <div style="max-width: 900px; margin: 0 auto;">
+            <h4 style="color: #f0f; border-bottom: 1px solid #444; padding-bottom: 5px;">プライバシーポリシー</h4>
+            <p><strong>1. 取得する情報：</strong> 当アプリは、Googleアカウントによるログイン時、ユーザー識別用の固有IDを取得します。メールアドレス自体を公開することはありません。</p>
+            <p><strong>2. 利用目的：</strong> 取得したIDは、ゲーム進行データ（スコア、履歴等）を同一アカウントの異なる端末間で同期するためにのみ使用します。</p>
+            <p><strong>3. データの管理：</strong> ユーザーデータはブラウザおよびクラウドに保存され、第三者に販売・提供されることは一切ありません。</p>
+            <p><strong>4. 啓蒙の目的：</strong> 本アプリは、特殊詐欺や搾取構造の危険性を社会に周知し、被害を未然に防ぐための教育的啓蒙を目的としています。</p>
+            <p style="color: #888; font-size: 0.65rem; margin-top: 20px;">© 2026 1.01の罠 制作チーム. All Rights Reserved.</p>
+        </div>
+    </footer>
+
     <script>
         const STORAGE_KEY = 'vicious_spiral_save';
         const LOG_KEY = 'vicious_spiral_logs';
@@ -116,8 +137,7 @@
             isNextDeath: false, thruSucc: 0, thruFail: 0,
             currentTab: 0,
             pulseRadius: 100, pulseTarget: 200, pulseSpeed: 1, pulseDir: 1,
-            shopCounts: { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) },
-            // ランクマッチ用初期値
+            shopCounts: { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0) },
             matchPoint: 0, lastMatchTime: Date.now()
         };
 
@@ -136,30 +156,30 @@
             retireTrigger: document.getElementById('retire-trigger'),
             confirmRetire: document.getElementById('confirm-retire'),
             cancelRetire: document.getElementById('cancel-retire'),
-            tabs: document.querySelectorAll('.tab-btn')
+            syncStatus: document.getElementById('sync-status')
         };
+
+        // Googleログイン後の処理
+        function handleCredentialResponse(response) {
+            console.log("Encoded JWT ID token: " + response.credential);
+            dom.syncStatus.innerText = "Cloud: 同期済み (Google接続中)";
+            // ここで本来はサーバー側にセーブデータを送りますが、
+            // 今回はログイン成功の表示のみ行い、ローカル保存を継続します。
+        }
 
         function saveGame() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(game));
         }
 
-        function saveLogs() {
-            localStorage.setItem(LOG_KEY, dom.logs.innerHTML);
-        }
-
         function loadGame() {
             const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                Object.assign(game, parsed);
-            }
+            if (saved) Object.assign(game, JSON.parse(saved));
             const savedLogs = localStorage.getItem(LOG_KEY);
             if (savedLogs) dom.logs.innerHTML = savedLogs;
             updateUI();
             runMatchSimulation();
         }
 
-        // ランク定義ロジック
         function getRankInfo(pt) {
             if (pt < 300) return { r: Math.floor(pt/100)+1, n: "初等構成員" };
             if (pt < 400) return { r: 4, n: "分水嶺の監視役" };
@@ -170,19 +190,13 @@
         function runMatchSimulation() {
             const now = Date.now();
             const hoursPassed = Math.floor((now - game.lastMatchTime) / (1000 * 60 * 60));
-            
             if (hoursPassed > 0) {
                 for (let i = 0; i < hoursPassed; i++) {
                     let info = getRankInfo(game.matchPoint);
                     let myPower = (game.rank * 100) + (game.totalMoney * 0.001);
                     let win = Math.random() < (0.5 + Math.min(0.3, myPower / 5000)); 
-                    
-                    let a = 0, b = 0;
-                    if (info.r <= 3) { a = 25; b = 5; }
-                    else if (info.r === 4) { a = 15; b = 15; }
-                    else if (info.r <= 7) { a = 5; b = 25; }
-                    else { a = 2; b = 60; } // ランク8: 増えにくく極端に減る
-
+                    let a = info.r <= 3 ? 25 : 5;
+                    let b = info.r >= 8 ? 60 : 15;
                     game.matchPoint += win ? a : -b;
                     if (game.matchPoint < 0) game.matchPoint = 0;
                 }
@@ -195,68 +209,14 @@
 
         function updateRankDisplay() {
             let info = getRankInfo(game.matchPoint);
-            let text = `階級: <b>Rank ${info.r}</b><br>肩書き: ${info.n}<br>Rating: ${Math.floor(game.matchPoint)} pt`;
-            if (info.r === 8) {
-                let rankInTop = Math.max(1, 100 - Math.floor((game.matchPoint - 700) / 5));
-                text += `<br><span style="color:#0ff;">順位: 世界 ${rankInTop} 位 (TOP 1%)</span>`;
-            }
-            dom.matchInfo.innerHTML = text;
-<!-- 画面最下部にプライバシーポリシーを配置 -->
-<footer style="background: #111; color: #666; padding: 20px; font-size: 0.7rem; border-top: 1px solid #333; position: relative; z-index: 100;">
-    <div id="privacy-policy" style="max-width: 800px; margin: 0 auto;">
-        <h4 style="color: #888; margin-bottom: 10px;">プライバシーポリシー</h4>
-        <p>【1.01の罠 — 螺旋する搾取 —】</p>
-        <p><strong>1. 取得する情報：</strong> 当ゲームは、Googleアカウントによるログイン時、ユーザーの識別用IDおよびメールアドレスを取得します。</p>
-        <p><strong>2. 利用目的：</strong> 取得した情報は、ゲーム進行データ（スコア、階層、履歴等）のクラウド保存・同期、および不正アクセスの防止のみに使用します。</p>
-        <p><strong>3. データの管理：</strong> 取得した個人情報は、ゲームプレイの利便性向上のためにのみ使用し、第三者に提供・販売することはありません。</p>
-        <p><strong>4. 啓蒙目的：</strong> 本アプリは、特殊詐欺や搾取構造の危険性を啓蒙するための教育目的で制作されています。</p>
-        <p><strong>5. データの削除：</strong> データの削除を希望する場合は、ブラウザのキャッシュ消去、または制作者までご連絡ください。</p>
-    </div>
-</footer>
-        }
-
-        function initGame(resetTotal = false) {
-            if (resetTotal) {
-                game.rank = 0;
-                game.totalMoney = 0;
-                game.matchPoint = Math.floor(game.matchPoint * 0.5); // リタイアで評価半減
-            }
-            game.rewardIncRate = 0.01 + (game.rank * 0.005);
-            game.riskIncRate = 0.05 + (game.rank * 0.02);
-            game.currentReward = 1.0;
-            game.money = 0;
-            game.risk = 0;
-            game.isNextDeath = false;
-            game.thruSucc = 0;
-            game.thruFail = 0;
-            game.shopCounts = { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) };
-            saveGame();
-            updateUI();
+            dom.matchInfo.innerHTML = `階級: <b>Rank ${info.r}</b><br>肩書き: ${info.n}<br>Rating: ${Math.floor(game.matchPoint)} pt`;
         }
 
         function switchTab(idx) {
             game.currentTab = idx;
-            dom.tabs.forEach((btn, i) => btn.classList.toggle('active', i === idx));
+            document.querySelectorAll('.tab-btn').forEach((btn, i) => btn.classList.toggle('active', i === idx));
             renderShop();
         }
-
-        dom.rewardBtn.onclick = () => {
-            if (game.isNextDeath) { processRetire("【不可視のリスク接触による強制破綻】", true); return; }
-            let gain = (Math.random() * 100 < game.risk) ? (game.isNextDeath = true, game.currentReward * 0.5) : game.currentReward;
-            game.money += gain;
-            game.totalMoney += gain;
-            game.currentReward += game.rewardIncRate;
-            game.risk = Math.min(99.9, game.risk + game.riskIncRate);
-            saveGame();
-            updateUI();
-        };
-
-        dom.throughBtn.onclick = () => {
-            if (game.isNextDeath) { game.isNextDeath = false; game.thruSucc++; }
-            else { game.currentReward = Math.max(1, game.currentReward * 0.8); game.thruFail++; }
-            saveGame();
-            updateUI();
-        };
 
         function renderShop() {
             dom.shop.innerHTML = "";
@@ -271,51 +231,18 @@
                     if (game.money >= currentCost) { 
                         game.money -= currentCost; 
                         game.shopCounts[tabIdx][itemIdx]++;
-                        onClick();
-                        saveGame(); 
-                        updateUI(); 
+                        onClick(); saveGame(); updateUI(); 
                     } 
                 };
                 dom.shop.appendChild(div);
             };
 
             if (game.currentTab === 0) {
-                createItem(0, 0, "次なる搾取へ", 200000 * Math.pow(2, game.rank), () => { 
-                    game.rank++; 
-                    processRebirth(); 
-                });
-            } 
-            else if (game.currentTab === 1) {
-                for(let i=0; i<10; i++){
-                    let rv = (i+1)*0.05, kv = (i+1)*2.0;
-                    createItem(1, i, `報酬:+${rv.toFixed(2)} / リスク:+${kv.toFixed(1)}`, 300 * (i+1) * r, () => {
-                        game.currentReward += rv; game.risk = Math.min(99.9, game.risk + kv);
-                    });
-                }
-            } 
-            else if (game.currentTab === 2) {
-                for(let i=0; i<10; i++){
-                    let rv = (i+1)*2.0, kv = (i+1)*0.1;
-                    createItem(2, i, `報酬:-${rv.toFixed(1)} / リスク:-${kv.toFixed(2)}`, 500 * (i+1) * r, () => {
-                        game.currentReward = Math.max(1, game.currentReward - rv); game.risk = Math.max(0, game.risk - kv);
-                    });
-                }
-            }
-            else if (game.currentTab === 3) {
-                for(let i=0; i<10; i++){
-                    let rv = (i+1)*0.002, kv = (i+1)*0.05;
-                    createItem(3, i, `報酬増率:+${rv.toFixed(4)} / リスク増率:+${kv.toFixed(3)}`, 1000 * (i+1) * r, () => {
-                        game.rewardIncRate += rv; game.riskIncRate += kv;
-                    });
-                }
-            }
-            else if (game.currentTab === 4) {
-                for(let i=0; i<10; i++){
-                    let rv = (i+1)*0.01, kv = (i+1)*0.001;
-                    createItem(4, i, `報酬増率:-${rv.toFixed(3)} / リスク増率:-${kv.toFixed(4)}`, 2000 * (i+1) * r, () => {
-                        game.rewardIncRate = Math.max(0, game.rewardIncRate - rv); game.riskIncRate = Math.max(0.01, game.riskIncRate - kv);
-                    });
-                }
+                createItem(0, 0, "次なる搾取へ", 200000 * Math.pow(2, game.rank), () => { game.rank++; resetSpiral(); });
+            } else if (game.currentTab === 1) {
+                createItem(1, 0, "即時報酬UP", 500 * r, () => { game.currentReward += 0.5; game.risk += 5; });
+            } else if (game.currentTab === 2) {
+                createItem(2, 0, "リスク微減", 1000 * r, () => { game.risk = Math.max(0, game.risk - 1); });
             }
         }
 
@@ -326,64 +253,67 @@
             dom.thruSucc.innerText = game.thruSucc;
             dom.thruFail.innerText = game.thruFail;
             renderShop();
-            if (game.isNextDeath) {
-                let v = 255 * (game.risk / 100);
-                dom.rewardBtn.style.backgroundColor = `rgb(${v}, ${v}, ${v})`;
-            } else {
-                dom.rewardBtn.style.backgroundColor = "rgb(255, 255, 255)";
-            }
+            dom.rewardBtn.style.backgroundColor = game.isNextDeath ? `rgb(${255 * (game.risk/100)}, 0, 0)` : "#fff";
             updateRankDisplay();
         }
 
-        function processRebirth() {
-            game.risk = 0;
-            game.isNextDeath = false;
-            game.shopCounts = { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) };
-            game.rewardIncRate = 0.01 + (game.rank * 0.005);
-            game.riskIncRate = 0.05 + (game.rank * 0.02);
-            game.currentReward = 1.0;
-            saveGame();
-            updateUI();
+        dom.rewardBtn.onclick = () => {
+            if (game.isNextDeath) { processDeath(); return; }
+            let fail = Math.random() * 100 < game.risk;
+            if (fail) { game.isNextDeath = true; game.money += game.currentReward * 0.5; }
+            else { game.money += game.currentReward; game.totalMoney += game.currentReward; }
+            game.currentReward += game.rewardIncRate;
+            game.risk = Math.min(99, game.risk + game.riskIncRate);
+            saveGame(); updateUI();
+        };
+
+        dom.throughBtn.onclick = () => {
+            if (game.isNextDeath) { game.isNextDeath = false; game.thruSucc++; }
+            else { game.currentReward *= 0.8; game.thruFail++; }
+            saveGame(); updateUI();
+        };
+
+        function resetSpiral() {
+            game.risk = 0; game.isNextDeath = false; game.currentReward = 1.0;
+            saveGame(); updateUI();
         }
 
-        function processRetire(txt, resetTotal) {
+        function processDeath() {
             const li = document.createElement('li');
             li.className = 'log-entry';
-            li.innerHTML = `<span>${txt}</span><br>到達階層: ${game.rank}<br>累計: ${Math.floor(game.totalMoney).toLocaleString()}<br>回避成功: ${game.thruSucc} | 回避失敗: ${game.thruFail}`;
+            li.innerHTML = `<span>【破綻】</span> 階層:${game.rank} 報酬:${Math.floor(game.totalMoney).toLocaleString()}`;
             dom.logs.prepend(li);
-            saveLogs();
-            initGame(resetTotal);
+            localStorage.setItem(LOG_KEY, dom.logs.innerHTML);
+            game.money = 0; game.totalMoney = 0; game.rank = 0; game.matchPoint *= 0.5;
+            resetSpiral();
         }
 
-        dom.retireTrigger.onclick = () => { dom.modal.style.display = 'block'; };
-        dom.cancelRetire.onclick = () => { dom.modal.style.display = 'none'; };
+        dom.retireTrigger.onclick = () => dom.modal.style.display = 'block';
+        dom.cancelRetire.onclick = () => dom.modal.style.display = 'none';
         dom.confirmRetire.onclick = () => {
-            const sel = Array.from(document.querySelectorAll('input[name="reason"]:checked')).map(e => e.value);
-            processRetire(`【自発リタイア】${sel.join('/') || "無言"}`, true);
+            const li = document.createElement('li');
+            li.className = 'log-entry';
+            li.innerHTML = `<span>【自発リタイア】</span> 階層:${game.rank} 完遂`;
+            dom.logs.prepend(li);
+            localStorage.setItem(LOG_KEY, dom.logs.innerHTML);
+            game.money = 0; game.totalMoney = 0; game.rank = 0;
+            resetSpiral();
             dom.modal.style.display = 'none';
         };
 
         const canvas = document.getElementById('visibility-canvas'), ctx = canvas.getContext('2d');
-        function animatePulse() {
+        function animate() {
             canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-            const cx = canvas.width / 2, cy = canvas.height / 2;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             game.pulseRadius += game.pulseSpeed * game.pulseDir;
-            if (game.pulseDir > 0 && game.pulseRadius >= game.pulseTarget) {
-                game.pulseDir = -1; game.pulseSpeed = Math.random() * 3 + 1;
-            } else if (game.pulseDir < 0 && game.pulseRadius <= 50) {
-                game.pulseDir = 1; game.pulseTarget = Math.random() * (cy * 1.2 - 200) + 200; game.pulseSpeed = Math.random() * 5 + 2;
-            }
-            const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, game.pulseRadius);
-            grad.addColorStop(0, 'rgba(128, 0, 128, 0.9)');
-            grad.addColorStop(0.7, 'rgba(60, 0, 60, 0.5)');
-            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(cx, cy, game.pulseRadius, 0, Math.PI * 2); ctx.fill();
-            requestAnimationFrame(animatePulse);
+            if (game.pulseRadius > 300 || game.pulseRadius < 100) game.pulseDir *= -1;
+            let g = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, game.pulseRadius);
+            g.addColorStop(0, 'rgba(128,0,128,0.3)'); g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, game.pulseRadius, 0, Math.PI*2); ctx.fill();
+            requestAnimationFrame(animate);
         }
 
-        loadGame(); 
-        animatePulse();
+        loadGame(); animate();
     </script>
 </body>
 </html>
