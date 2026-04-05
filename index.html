@@ -33,7 +33,10 @@
         .reason-item { display: block; margin: 12px 0; cursor: pointer; font-size: 1.1rem; color: #ccc; }
         .modal-btn { width: 100%; padding: 12px; color: white; margin-top: 10px; font-size: 1.2rem; }
         
-        #google-sync-container { margin-top: 10px; display: flex; justify-content: center; }
+        /* ログインセクションのスタイル */
+        #google-sync-container { margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        #auth-status { font-size: 0.7rem; color: #888; font-weight: bold; }
+        #auth-status.logged-in { color: #0f0; text-shadow: 0 0 5px #0f0; }
     </style>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -63,6 +66,7 @@
                         data-auto_prompt="false">
                     </div>
                     <div class="g_id_signin" data-type="standard" data-theme="filled_black" data-size="medium" data-text="signin_with" data-shape="rectangular" data-logo_alignment="left"></div>
+                    <div id="auth-status">未ログイン</div>
                 </div>
             </div>
             <div class="area-bottom">
@@ -136,14 +140,17 @@
             retireTrigger: document.getElementById('retire-trigger'),
             confirmRetire: document.getElementById('confirm-retire'),
             cancelRetire: document.getElementById('cancel-retire'),
-            tabs: document.querySelectorAll('.tab-btn')
+            tabs: document.querySelectorAll('.tab-btn'),
+            authStatus: document.getElementById('auth-status')
         };
 
         let googleToken = null;
 
         function handleCredentialResponse(response) {
             googleToken = response.credential;
-            console.log("Googleアカウント同期準備完了");
+            dom.authStatus.innerText = "ログイン済み";
+            dom.authStatus.classList.add("logged-in");
+            console.log("Google同期準備完了");
         }
 
         function saveGame() {
