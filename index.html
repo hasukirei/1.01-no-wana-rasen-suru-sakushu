@@ -6,152 +6,159 @@
     <title>1.01の罠 — 螺旋する搾取 —</title>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: black; color: white; font-family: sans-serif; }
-        
-        #visibility-canvas { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            z-index: 5; pointer-events: none; 
-        }
-        
+        #visibility-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
         .container { display: flex; width: 100vw; height: 100vh; position: relative; z-index: 10; background: transparent; }
         .col { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #333; background: transparent; text-shadow: 0 0 5px rgba(0,0,0,1); }
         .col:last-child { border-right: none; }
         .area-top { flex: 0 0 30vh; border-bottom: 2px solid #555; padding: 15px; box-sizing: border-box; background: transparent; overflow-y: auto; }
         .area-bottom { flex: 1; padding: 15px; box-sizing: border-box; overflow-y: auto; background: transparent; }
-        
-        h3 { margin-top: 0; font-size: 1rem; border-bottom: 1px solid #444; padding-bottom: 8px; display: flex; flex-direction: column; gap: 8px; }
+        h3 { margin-top: 0; font-size: 1rem; border-bottom: 1px solid #444; padding-bottom: 8px; }
         button { cursor: pointer; border: none; font-weight: bold; outline: none; position: relative; z-index: 20; }
-        
-        .shop-tabs { display: flex; flex-wrap: wrap; gap: 3px; }
-        .tab-btn { background: rgba(51, 51, 51, 0.8); color: #ccc; font-size: 0.6rem; padding: 4px 5px; border: 1px solid #555; }
+        .shop-tabs { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+        .tab-btn { background: rgba(51, 51, 51, 0.8); color: #ccc; font-size: 0.6rem; padding: 4px 5px; border: 1px solid #555; flex: 1; }
         .tab-btn.active { background: #800080; color: white; border-color: #f0f; }
-        
         #retire-trigger { width: 100%; height: 60%; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.8rem; border-radius: 5px; }
-        
-        .shop-item { background: rgba(26, 26, 26, 0.9); margin-bottom: 5px; padding: 8px; border: 1px solid #444; cursor: pointer; font-size: 0.75rem; display: flex; justify-content: space-between; }
-        
+        .shop-item { background: rgba(26, 26, 26, 0.9); margin-bottom: 5px; padding: 8px; border: 1px solid #444; cursor: pointer; font-size: 0.75rem; color: #ddd; display: flex; justify-content: space-between; }
         .main-btn-wrapper { display: flex; justify-content: space-between; align-items: center; height: 100%; padding: 0 5%; }
-        .main-btn { width: 48%; height: 60%; border-radius: 10px; border: 2px solid #555; font-size: 1.5rem; transition: background-color 0.1s, color 0.1s; }
-        
-        /* 回避ボタン: 初期は黒、リスクに応じて白へ */
-        #through-btn { background-color: rgb(0, 0, 0); color: white; }
-        /* 報酬ボタン: 白色固定 */
-        #reward-btn { background-color: white; color: black; } 
-        
-        .status-text { font-size: 0.8rem; line-height: 1.4; }
-        #google-auth-area { margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-        .mini-btn { background: #333; color: #eee; font-size: 0.6rem; padding: 5px 8px; border: 1px solid #555; }
-
-        #retire-modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95); z-index: 100; justify-content: center; align-items: center;
-        }
+        .main-btn { width: 48%; height: 60%; border-radius: 10px; border: 2px solid #555; font-size: 1.5rem; }
+        #through-btn { background-color: rgb(0,0,0); color: white; transition: background-color 0.1s; }
+        #reward-btn { background-color: white; color: transparent; border: none; }
+        #google-auth-area { margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .mini-btn { background: #333; color: #eee; font-size: 0.8rem; padding: 8px 15px; border: 1px solid #555; border-radius: 3px; }
+        #auth-status-label { font-size: 0.7rem; color: #aaa; }
+        #log-list { list-style: none; padding: 0; font-size: 0.7rem; color: #0f0; }
+        #log-list li { border-bottom: 1px solid #222; padding: 2px 0; }
+        #retire-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: #1a1a1a; padding: 20px; border: 1px solid #555; border-radius: 8px; width: 280px; }
-        .reason-item { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
     </style>
 </head>
 <body>
     <canvas id="visibility-canvas"></canvas>
-
     <div id="retire-modal">
         <div class="modal-content">
             <h4>リタイアの理由</h4>
-            <div class="reason-item"><input type="checkbox" class="retire-reason" id="r1"><label for="r1">身の危険を感じた</label></div>
-            <div class="reason-item"><input type="checkbox" class="retire-reason" id="r2"><label for="r2">良心の呵責</label></div>
-            <div class="reason-item"><input type="checkbox" class="retire-reason" id="r3"><label for="r3">充分に稼いだ</label></div>
-            <div class="reason-item"><input type="checkbox" class="retire-reason" id="r4"><label for="r4">精神的限界</label></div>
-            <div class="modal-btns">
+            <div><input type="checkbox" id="r1"><label for="r1">身の危険を感じた</label></div>
+            <div><input type="checkbox" id="r2"><label for="r2">良心の呵責</label></div>
+            <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
                 <button style="background:#444; color:white; padding:5px 10px;" id="retire-cancel">戻る</button>
                 <button style="background:#600; color:white; padding:5px 10px;" id="retire-confirm">実行</button>
             </div>
         </div>
     </div>
-
     <div class="container">
         <div class="col">
             <div class="area-top">
                 <button id="retire-trigger">リタイア</button>
                 <div id="google-auth-area">
-                    <div id="auth-status-label">未ログイン</div>
                     <button class="mini-btn" id="login-btn">ログイン</button>
+                    <div id="auth-status-label">未ログイン</div>
                 </div>
             </div>
             <div class="area-bottom">
-                <h3>SHOP<div class="shop-tabs" id="tab-parent"></div></h3>
+                <h3>SHOP<div class="shop-tabs">
+                    <button class="tab-btn active" onclick="switchTab(0)">転生</button>
+                    <button class="tab-btn" onclick="switchTab(1)">即増</button>
+                    <button class="tab-btn" onclick="switchTab(2)">即減</button>
+                    <button class="tab-btn" onclick="switchTab(3)">増量UP</button>
+                    <button class="tab-btn" onclick="switchTab(4)">抑制</button>
+                </div></h3>
                 <div id="shop-container"></div>
             </div>
         </div>
         <div class="col">
-            <div class="area-top"><h3>相談窓口</h3><p style="font-size:0.7rem;">警察庁匿名通報: 0120-924-839</p></div>
+            <div class="area-top"><h3>相談窓口</h3><p style="font-size: 0.7rem; color:#bbb;">警察庁 匿名通報: 0120-924-839</p></div>
             <div class="area-bottom"><div class="main-btn-wrapper">
                 <button id="through-btn" class="main-btn">回避</button>
                 <button id="reward-btn" class="main-btn"></button>
             </div></div>
         </div>
         <div class="col">
-            <div class="area-top status-text">
+            <div class="area-top">
                 <p>報酬: <span id="money-disp">0</span></p>
-                <p>リスク: <span id="risk-disp">0</span>%</p>
+                <p>累計: <span id="total-money-disp">0</span></p>
+                <p>階層: <span id="rank-disp">0</span></p>
                 <p>回避成功: <span id="thru-succ-disp">0</span></p>
             </div>
-            <div class="area-bottom"><ul id="log-list"></ul></div>
+            <div class="area-bottom"><h3>履歴</h3><ul id="log-list"></ul></div>
         </div>
     </div>
 
     <script type="module">
-        // Firebase設定などは省略（構造維持）
-        let game = { money: 0, risk: 0, thruSucc: 0, rank: 0 };
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyAaTVoLldKTs_eqJzn-J9QpQL9-UaZK5XM", authDomain: "nowanarasensurusakushu.firebaseapp.com", projectId: "nowanarasensurusakushu", storageBucket: "nowanarasensurusakushu.firebasestorage.app", messagingSenderId: "164645357186", appId: "1:164645357186:web:40023f7d16dd28cf4f169b" };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        let game = JSON.parse(localStorage.getItem('vicious_save')) || { money: 0, totalMoney: 0, currentReward: 1.0, rank: 0, risk: 0, thruSucc: 0, logs: [], currentTab: 0, shopCounts: { 0: [0], 1: Array(5).fill(0), 2: Array(5).fill(0), 3: Array(5).fill(0), 4: Array(5).fill(0) } };
+        let userUid = null;
 
         const updateUI = () => {
             document.getElementById('money-disp').innerText = Math.floor(game.money).toLocaleString();
-            document.getElementById('risk-disp').innerText = game.risk.toFixed(2);
+            document.getElementById('total-money-disp').innerText = Math.floor(game.totalMoney).toLocaleString();
+            document.getElementById('rank-disp').innerText = game.rank;
             document.getElementById('thru-succ-disp').innerText = game.thruSucc;
+            
+            const v = Math.min(255, Math.floor((game.risk / 100) * 255));
+            const tb = document.getElementById('through-btn');
+            tb.style.backgroundColor = `rgb(${v},${v},${v})`;
+            tb.style.color = v > 128 ? 'black' : 'white';
 
-            // 回避ボタンの背景色制御: 0%なら黒(0,0,0)、100%なら白(255,255,255)
-            const val = Math.min(255, Math.floor((game.risk / 100) * 255));
-            const btn = document.getElementById('through-btn');
-            btn.style.backgroundColor = `rgb(${val}, ${val}, ${val})`;
-            btn.style.color = val > 128 ? 'black' : 'white'; // 文字色も反転させて同化させる
+            const logList = document.getElementById('log-list');
+            logList.innerHTML = game.logs.slice(-10).reverse().map(l => `<li>${l}</li>`).join('');
+            renderShop();
         };
 
-        document.getElementById('reward-btn').onclick = () => {
-            game.money += 100; // 仮
-            game.risk = Math.min(100, game.risk + 0.5); // 報酬を得るほどリスク上昇
-            updateUI();
-        };
+        const addLog = (msg) => { game.logs.push(`[${new Date().toLocaleTimeString()}] ${msg}`); saveGame(); updateUI(); };
+        const saveGame = () => { localStorage.setItem('vicious_save', JSON.stringify(game)); if (userUid) setDoc(doc(db, "users", userUid), { game }); };
 
-        document.getElementById('through-btn').onclick = () => {
-            game.thruSucc++;
-            updateUI();
-        };
+        onAuthStateChanged(auth, async (user) => {
+            if (user) { userUid = user.uid; document.getElementById('auth-status-label').innerText = user.displayName; const snap = await getDoc(doc(db, "users", userUid)); if (snap.exists()) { game = snap.data().game; updateUI(); } }
+        });
+
+        document.getElementById('login-btn').onclick = () => signInWithPopup(auth, provider);
+        document.getElementById('reward-btn').onclick = () => { game.money += game.currentReward; game.totalMoney += game.currentReward; game.risk = Math.min(100, game.risk + 0.1); addLog(`報酬獲得: +${game.currentReward.toFixed(1)}`); };
+        document.getElementById('through-btn').onclick = () => { game.thruSucc++; addLog("危機を回避"); };
+
+        window.switchTab = (idx) => { game.currentTab = idx; document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === idx)); renderShop(); };
+
+        function renderShop() {
+            const container = document.getElementById('shop-container');
+            container.innerHTML = "";
+            const createItem = (tab, idx, label, cost, action) => {
+                const count = game.shopCounts[tab][idx];
+                const cCost = Math.floor(cost * Math.pow(1.2, count));
+                const div = document.createElement('div');
+                div.className = 'shop-item';
+                div.innerHTML = `<span>${label} (${cCost})</span><span>[${count}]</span>`;
+                div.onclick = () => { if(game.money >= cCost){ game.money -= cCost; game.shopCounts[tab][idx]++; action(); addLog(`${label} 購入`); } };
+                container.appendChild(div);
+            };
+            if(game.currentTab === 0) createItem(0, 0, "転生 (次の階層へ)", 1000, () => { game.rank++; game.risk = 0; });
+            if(game.currentTab === 1) [1, 5, 10, 50, 100].forEach((v, i) => createItem(1, i, `即時増量+${v}`, v*10, () => { game.currentReward += v; }));
+            if(game.currentTab === 2) [1, 5, 10, 50, 100].forEach((v, i) => createItem(2, i, `リスク即減-${v}%`, v*20, () => { game.risk = Math.max(0, game.risk - v); }));
+        }
 
         document.getElementById('retire-trigger').onclick = () => { document.getElementById('retire-modal').style.display = 'flex'; };
         document.getElementById('retire-cancel').onclick = () => { document.getElementById('retire-modal').style.display = 'none'; };
-        document.getElementById('retire-confirm').onclick = () => { location.reload(); };
+        document.getElementById('retire-confirm').onclick = () => { localStorage.clear(); location.reload(); };
 
-        // 鼓動演出
         const canvas = document.getElementById('visibility-canvas'), ctx = canvas.getContext('2d');
-        let beatRadius = 100, growing = true, speed = 0.05, targetMax = 300, targetMin = 50;
+        let beatRadius = 100, growing = true;
         function animate() {
             canvas.width = window.innerWidth; canvas.height = window.innerHeight;
             ctx.clearRect(0,0,canvas.width,canvas.height);
-            if (growing) {
-                beatRadius += speed * 50;
-                if (beatRadius >= targetMax) { growing = false; targetMin = 30 + Math.random() * 70; speed = 0.02 + Math.random() * 0.08; }
-            } else {
-                beatRadius -= speed * 50;
-                if (beatRadius <= targetMin) { growing = true; targetMax = 200 + Math.random() * 200; speed = 0.02 + Math.random() * 0.08; }
-            }
-            ctx.beginPath();
-            ctx.arc(canvas.width / 2, canvas.height / 2, beatRadius, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(80, 0, 120, 0.2)';
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(150, 0, 255, 0.4)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            beatRadius += growing ? 2 : -2;
+            if (beatRadius > 250 || beatRadius < 80) growing = !growing;
+            ctx.beginPath(); ctx.arc(canvas.width / 2, canvas.height / 2, beatRadius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(80, 0, 120, 0.15)'; ctx.fill();
             requestAnimationFrame(animate);
         }
-        animate();
-        updateUI();
+        animate(); updateUI();
     </script>
 </body>
 </html>
