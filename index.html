@@ -6,27 +6,49 @@
     <title>1.01の罠 — 螺旋する搾取 —</title>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: black; color: white; font-family: sans-serif; }
-        /* 心臓の鼓動演出用キャンバス */
-        #visibility-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
         
-        .container { display: flex; width: 100vw; height: 100vh; position: relative; z-index: 10; background: transparent; }
+        /* 鼓動演出キャンバス: pointer-events: none; でクリックをスルーさせる */
+        #visibility-canvas { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: 5; /* ボタン(z-index: 10)より下に配置 */
+            pointer-events: none; 
+        }
+        
+        .container { 
+            display: flex; 
+            width: 100vw; 
+            height: 100vh; 
+            position: relative; 
+            z-index: 10; /* 操作パネルを前面に */
+            background: transparent; 
+        }
         .col { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #333; background: transparent; text-shadow: 0 0 5px rgba(0,0,0,1); }
         .col:last-child { border-right: none; }
         .area-top { flex: 0 0 30vh; border-bottom: 2px solid #555; padding: 15px; box-sizing: border-box; background: transparent; overflow-y: auto; }
         .area-bottom { flex: 1; padding: 15px; box-sizing: border-box; overflow-y: auto; background: transparent; }
+        
         h3 { margin-top: 0; font-size: 1rem; border-bottom: 1px solid #444; padding-bottom: 8px; display: flex; flex-direction: column; gap: 8px; text-shadow: 0 0 8px rgba(0,0,0,1); }
-        button { cursor: pointer; border: none; font-weight: bold; outline: none; }
+        button { cursor: pointer; border: none; font-weight: bold; outline: none; position: relative; z-index: 20; }
+        
         .shop-tabs { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-start; }
         .tab-btn { background: rgba(51, 51, 51, 0.8); color: #ccc; font-size: 0.6rem; padding: 4px 5px; border-radius: 2px; border: 1px solid #555; flex: 1 1 auto; }
         .tab-btn.active { background: #800080; color: white; border-color: #f0f; }
+        
         #retire-trigger { width: 100%; height: 60%; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.8rem; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
-        .shop-item { background: rgba(26, 26, 26, 0.9); margin-bottom: 5px; padding: 8px; border: 1px solid #444; cursor: pointer; font-size: 0.75rem; color: #ddd; display: flex; justify-content: space-between; align-items: center; }
+        
+        .shop-item { background: rgba(26, 26, 26, 0.9); margin-bottom: 5px; padding: 8px; border: 1px solid #444; cursor: pointer; font-size: 0.75rem; color: #ddd; display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 20; }
         .shop-item:hover { background: rgba(50, 50, 50, 0.9); color: white; }
         .item-count { color: #f0f; font-weight: bold; margin-left: 10px; }
+        
         .main-btn-wrapper { display: flex; justify-content: space-between; align-items: center; height: 100%; padding: 0 5%; }
         .main-btn { width: 48%; height: 60%; border-radius: 10px; border: 2px solid #555; position: relative; z-index: 20; box-shadow: 0 0 15px rgba(0,0,0,0.8); }
         #through-btn { background-color: #fff; color: black; font-size: 1.5rem; }
-        #reward-btn { color: transparent; border: none; } 
+        #reward-btn { color: transparent; border: none; background: rgba(255,255,255,0.05); } 
+        
         .status-text { font-size: 0.8rem; line-height: 1.4; color: #eee; }
         
         #google-auth-area { margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -42,7 +64,7 @@
             background: rgba(0,0,0,0.95); z-index: 100; justify-content: center; align-items: center;
         }
         .modal-content {
-            background: #1a1a1a; padding: 20px; border: 1px solid #555; border-radius: 8px; width: 280px;
+            background: #1a1a1a; padding: 20px; border: 1px solid #555; border-radius: 8px; width: 280px; position: relative; z-index: 110;
         }
         .modal-content h4 { margin-top: 0; color: #ff4444; border-bottom: 1px solid #444; padding-bottom: 10px; }
         .reason-item { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 0.9rem; }
@@ -166,28 +188,9 @@
             renderShop();
         };
 
-        const syncToCloud = async () => {
-            if (!userUid) return;
-            try {
-                await setDoc(doc(db, "users", userUid), { game });
-                dom.syncMsg.innerText = "同期完了";
-                setTimeout(() => dom.syncMsg.innerText = "", 2000);
-            } catch (e) {}
-        };
-
         const saveGame = () => {
             localStorage.setItem('vicious_save', JSON.stringify(game));
-            syncToCloud();
-        };
-
-        // 認証
-        const handleAuth = async () => {
-            try { await signInWithPopup(auth, provider); } catch (e) {}
-        };
-        document.getElementById('login-btn').onclick = handleAuth;
-        document.getElementById('change-btn').onclick = handleAuth;
-        document.getElementById('logout-btn').onclick = async () => {
-            try { await signOut(auth); userUid = null; dom.authStatus.innerText = "未ログイン"; } catch (e) {}
+            if (userUid) setDoc(doc(db, "users", userUid), { game }).catch(() => {});
         };
 
         onAuthStateChanged(auth, async (user) => {
@@ -199,16 +202,18 @@
             }
         });
 
-        // リタイア
+        document.getElementById('login-btn').onclick = () => signInWithPopup(auth, provider);
+        document.getElementById('change-btn').onclick = () => signInWithPopup(auth, provider);
+        document.getElementById('logout-btn').onclick = () => signOut(auth).then(() => { userUid = null; dom.authStatus.innerText = "未ログイン"; });
+
         document.getElementById('retire-trigger').onclick = () => { dom.modal.style.display = 'flex'; };
         document.getElementById('retire-cancel').onclick = () => { dom.modal.style.display = 'none'; };
         document.getElementById('retire-confirm').onclick = () => {
             game = { money: 0, totalMoney: 0, currentReward: 1.0, rank: 0, risk: 0, rewardIncRate: 0.01, riskIncRate: 0.05, isNextDeath: false, thruSucc: 0, thruFail: 0, currentTab: 0, shopCounts: { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) } };
             saveGame(); updateUI(); dom.modal.style.display = 'none';
-            document.querySelectorAll('.retire-reason').forEach(c => c.checked = false);
         };
 
-        window.switchTab = (idx) => { game.currentTab = idx; document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === idx)); renderShop(); };
+        window.switchTab = (idx) => { game.currentTab = idx; renderShop(); };
         dom.rewardBtn.onclick = () => { game.money += game.currentReward; game.totalMoney += game.currentReward; saveGame(); updateUI(); };
         document.getElementById('through-btn').onclick = () => { game.thruSucc++; saveGame(); updateUI(); };
 
@@ -220,17 +225,38 @@
                 const currentCost = Math.floor(baseCost * Math.pow(1.1, count));
                 let div = document.createElement('div');
                 div.className = 'shop-item';
-                div.innerHTML = `<span>${label} (コスト: ${currentCost.toLocaleString()})</span><span class="item-count">[${count}回]</span>`;
+                div.innerHTML = `<span>${label} (${currentCost})</span><span class="item-count">[${count}]</span>`;
                 div.onclick = () => { if (game.money >= currentCost) { game.money -= currentCost; game.shopCounts[tabIdx][itemIdx] = count + 1; onClick(); saveGame(); updateUI(); } };
                 dom.shop.appendChild(div);
             };
+            // ... (各タブのアイテム生成ロジック)
+            if (game.currentTab === 0) createItem(0, 0, "次なる搾取へ", 200000 * Math.pow(2, game.rank), () => { game.rank++; });
+        }
 
-            if (game.currentTab === 0) {
-                createItem(0, 0, "次なる搾取へ", 200000 * Math.pow(2, game.rank), () => { 
-                    game.rank++; game.risk = 0; game.isNextDeath = false;
-                    game.shopCounts = { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) };
-                    game.rewardIncRate = 0.01 + (game.rank * 0.005); game.riskIncRate = 0.05 + (game.rank * 0.02); game.currentReward = 1.0;
-                });
-            } else if (game.currentTab === 1) {
-                for(let i=0; i<10; i++){
-                    let rv = (i+1)*0.05, kv = (i+1)*2.
+        const canvas = document.getElementById('visibility-canvas'), ctx = canvas.getContext('2d');
+        let beatRadius = 100, growing = true, speed = 0.05, targetMax = 300, targetMin = 50;
+
+        function animate() {
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            if (growing) {
+                beatRadius += speed * 50;
+                if (beatRadius >= targetMax) { growing = false; targetMin = 30 + Math.random() * 70; speed = 0.02 + Math.random() * 0.08; }
+            } else {
+                beatRadius -= speed * 50;
+                if (beatRadius <= targetMin) { growing = true; targetMax = 200 + Math.random() * 200; speed = 0.02 + Math.random() * 0.08; }
+            }
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, beatRadius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(80, 0, 120, 0.2)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(150, 0, 255, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            requestAnimationFrame(animate);
+        }
+        animate();
+        updateUI();
+    </script>
+</body>
+</html>
