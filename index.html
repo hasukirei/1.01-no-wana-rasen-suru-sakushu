@@ -201,6 +201,18 @@
                 text += `<br><span style="color:#0ff;">順位: 世界 ${rankInTop} 位 (TOP 1%)</span>`;
             }
             dom.matchInfo.innerHTML = text;
+<!-- 画面最下部にプライバシーポリシーを配置 -->
+<footer style="background: #111; color: #666; padding: 20px; font-size: 0.7rem; border-top: 1px solid #333; position: relative; z-index: 100;">
+    <div id="privacy-policy" style="max-width: 800px; margin: 0 auto;">
+        <h4 style="color: #888; margin-bottom: 10px;">プライバシーポリシー</h4>
+        <p>【1.01の罠 — 螺旋する搾取 —】</p>
+        <p><strong>1. 取得する情報：</strong> 当ゲームは、Googleアカウントによるログイン時、ユーザーの識別用IDおよびメールアドレスを取得します。</p>
+        <p><strong>2. 利用目的：</strong> 取得した情報は、ゲーム進行データ（スコア、階層、履歴等）のクラウド保存・同期、および不正アクセスの防止のみに使用します。</p>
+        <p><strong>3. データの管理：</strong> 取得した個人情報は、ゲームプレイの利便性向上のためにのみ使用し、第三者に提供・販売することはありません。</p>
+        <p><strong>4. 啓蒙目的：</strong> 本アプリは、特殊詐欺や搾取構造の危険性を啓蒙するための教育目的で制作されています。</p>
+        <p><strong>5. データの削除：</strong> データの削除を希望する場合は、ブラウザのキャッシュ消去、または制作者までご連絡ください。</p>
+    </div>
+</footer>
         }
 
         function initGame(resetTotal = false) {
