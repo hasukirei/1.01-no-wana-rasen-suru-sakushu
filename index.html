@@ -21,6 +21,7 @@
         .tab-btn.active { background: #800080; color: white; border-color: #f0f; }
         #retire-trigger { width: 100%; height: 80%; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.8rem; border-radius: 5px; }
         .shop-item { background: rgba(26, 26, 26, 0.9); margin-bottom: 5px; padding: 8px; border: 1px solid #444; cursor: pointer; font-size: 0.75rem; color: #ddd; display: flex; justify-content: space-between; align-items: center; }
+        .item-detail { font-size: 0.6rem; color: #aaa; display: block; margin-top: 2px; }
         .main-btn-wrapper { display: flex; justify-content: space-between; align-items: center; height: 100%; padding: 0 5%; }
         .main-btn { width: 48%; height: 60%; border-radius: 10px; border: 2px solid #555; position: relative; z-index: 20; }
         #through-btn { background-color: #fff; color: black; font-size: 1.5rem; }
@@ -42,10 +43,6 @@
     <div id="retire-modal" class="modal">
         <h3 style="color:#f0f; border:none; text-align:center;">リタイア確認</h3>
         <p style="font-size:0.8rem; color:#aaa; text-align:center;">すべてを失って逃げますか？</p>
-        <label class="reason-item"><input type="checkbox" name="reason" value="身の危険"> 身の危険を感じた</label>
-        <label class="reason-item"><input type="checkbox" name="reason" value="良心"> 良心の呵責</label>
-        <label class="reason-item"><input type="checkbox" name="reason" value="満足"> 充分に稼いだ</label>
-        <label class="reason-item"><input type="checkbox" name="reason" value="限界"> 精神的限界</label>
         <button id="confirm-retire" class="modal-btn" style="background:#900;">確定して終了</button>
         <button id="cancel-retire" class="modal-btn" style="background:#444;">戻る</button>
     </div>
@@ -110,10 +107,10 @@
         </div>
     </div>
 
-    <footer id="footer">
+    <footer>
         <div style="max-width: 900px; margin: 0 auto;">
-            <h4 style="color: #f0f; border-bottom: 1px solid #444; padding-bottom: 5px;">プライバシーポリシー</h4>
-            <p>1. 取得情報：Googleアカウント固有IDのみ。 / 2. 目的：セーブデータ同期。 / 3. 管理：第三者提供なし。 / 4. 啓蒙：本アプリは特殊詐欺等の危険性を啓蒙する教育目的で制作されています。</p>
+            <h4 style="color: #f0f;">プライバシーポリシー</h4>
+            <p>1. 取得情報：GoogleアカウントIDのみ。 / 2. 目的：セーブデータ同期。 / 3. 管理：第三者提供なし。 / 4. 啓蒙：特殊詐欺の危険性を啓蒙する教育目的です。</p>
         </div>
     </footer>
 
@@ -142,15 +139,12 @@
             shop: document.getElementById('shop-container'),
             logs: document.getElementById('log-list'),
             matchInfo: document.getElementById('match-info'),
-            modal: document.getElementById('retire-modal'),
-            syncStatus: document.getElementById('sync-status')
+            modal: document.getElementById('retire-modal')
         };
 
-        function handleCredentialResponse(r) { dom.syncStatus.innerText = "Cloud: 同期中"; }
+        function handleCredentialResponse(r) { document.getElementById('sync-status').innerText = "Cloud: 同期完了"; }
 
-        function saveGame() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(game));
-        }
+        function saveGame() { localStorage.setItem(STORAGE_KEY, JSON.stringify(game)); }
 
         function loadGame() {
             const s = localStorage.getItem(STORAGE_KEY);
@@ -197,12 +191,12 @@
         function renderShop() {
             dom.shop.innerHTML = "";
             const r = game.rank + 1;
-            let createItem = (tabIdx, itemIdx, label, baseCost, onClick) => {
+            let createItem = (tabIdx, itemIdx, label, detail, baseCost, onClick) => {
                 const count = game.shopCounts[tabIdx][itemIdx];
                 const currentCost = Math.floor(baseCost * Math.pow(1.1, count));
                 let div = document.createElement('div');
                 div.className = 'shop-item';
-                div.innerHTML = `<span>${label} (${currentCost.toLocaleString()})</span><span class="item-count">[${count}]</span>`;
+                div.innerHTML = `<div><span>${label} (${currentCost.toLocaleString()})</span><span class="item-detail">${detail}</span></div><span class="item-count">[${count}]</span>`;
                 div.onclick = () => { 
                     if (game.money >= currentCost) { 
                         game.money -= currentCost; game.shopCounts[tabIdx][itemIdx]++;
@@ -213,15 +207,27 @@
             };
 
             if (game.currentTab === 0) {
-                createItem(0, 0, "次なる搾取へ", 200000 * Math.pow(2, game.rank), () => { game.rank++; resetSpiral(); });
+                createItem(0, 0, "次なる搾取へ", `階層+1 / リスク・報酬初期化`, 200000 * Math.pow(2, game.rank), () => { game.rank++; resetSpiral(); });
             } else if (game.currentTab === 1) {
-                for(let i=0; i<10; i++) createItem(1, i, `報酬UP`, 300*(i+1)*r, () => { game.currentReward+=(i+1)*0.05; game.risk+=(i+1)*2; });
+                for(let i=0; i<5; i++) {
+                    let val = (i+1);
+                    createItem(1, i, `即時報酬UP Lv${val}`, `報酬+${(val*0.05).toFixed(2)} / リスク+${val*2}%`, 300*val*r, () => { game.currentReward+=val*0.05; game.risk+=val*2; });
+                }
             } else if (game.currentTab === 2) {
-                for(let i=0; i<10; i++) createItem(2, i, `リスク低減`, 500*(i+1)*r, () => { game.currentReward=Math.max(1, game.currentReward-(i+1)*2); game.risk=Math.max(0, game.risk-(i+1)*0.1); });
+                for(let i=0; i<5; i++) {
+                    let val = (i+1);
+                    createItem(2, i, `即時リスク低減 Lv${val}`, `報酬-2 / リスク-${(val*0.1).toFixed(2)}%`, 500*val*r, () => { game.currentReward=Math.max(1, game.currentReward-2); game.risk=Math.max(0, game.risk-val*0.1); });
+                }
             } else if (game.currentTab === 3) {
-                for(let i=0; i<10; i++) createItem(3, i, `報酬増率+`, 1000*(i+1)*r, () => { game.rewardIncRate+=(i+1)*0.002; game.riskIncRate+=(i+1)*0.05; });
+                for(let i=0; i<5; i++) {
+                    let val = (i+1);
+                    createItem(3, i, `報酬増率UP Lv${val}`, `増率+${(val*0.002).toFixed(3)} / リスク増率+${(val*0.05).toFixed(2)}`, 1000*val*r, () => { game.rewardIncRate+=val*0.002; game.riskIncRate+=val*0.05; });
+                }
             } else if (game.currentTab === 4) {
-                for(let i=0; i<10; i++) createItem(4, i, `リスク増率-`, 2000*(i+1)*r, () => { game.rewardIncRate=Math.max(0, game.rewardIncRate-(i+1)*0.01); game.riskIncRate=Math.max(0.01, game.riskIncRate-(i+1)*0.001); });
+                for(let i=0; i<5; i++) {
+                    let val = (i+1);
+                    createItem(4, i, `リスク増率抑制 Lv${val}`, `報酬増率-0.01 / リスク増率-${(val*0.001).toFixed(3)}`, 2000*val*r, () => { game.rewardIncRate=Math.max(0, game.rewardIncRate-0.01); game.riskIncRate=Math.max(0.01, game.riskIncRate-val*0.001); });
+                }
             }
         }
 
@@ -257,7 +263,7 @@
 
         function processDeath() {
             const li = document.createElement('li'); li.className = 'log-entry';
-            li.innerHTML = `<span>【破綻】</span> 階層:${game.rank} 報酬:${Math.floor(game.totalMoney).toLocaleString()}`;
+            li.innerHTML = `<span>【破綻】</span> 階層:${game.rank} 累計:${Math.floor(game.totalMoney).toLocaleString()}`;
             dom.logs.prepend(li);
             localStorage.setItem(LOG_KEY, dom.logs.innerHTML);
             game.money = 0; game.totalMoney = 0; game.rank = 0; game.matchPoint *= 0.5;
@@ -266,9 +272,7 @@
 
         document.getElementById('retire-trigger').onclick = () => dom.modal.style.display = 'block';
         document.getElementById('cancel-retire').onclick = () => dom.modal.style.display = 'none';
-        document.getElementById('confirm-retire').onclick = () => {
-            processDeath(); dom.modal.style.display = 'none';
-        };
+        document.getElementById('confirm-retire').onclick = () => { processDeath(); dom.modal.style.display = 'none'; };
 
         const canvas = document.getElementById('visibility-canvas'), ctx = canvas.getContext('2d');
         function animate() {
