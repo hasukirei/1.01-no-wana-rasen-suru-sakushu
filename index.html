@@ -2,77 +2,73 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>1.01の罠 — 螺旋する搾取 —</title>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: black; color: white; font-family: sans-serif; }
         #visibility-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
-        .container { display: flex; width: 100vw; height: 100vh; position: relative; z-index: 10; }
-        .col { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #333; background: transparent; }
-        .area-top { flex: 0 0 30vh; border-bottom: 2px solid #555; padding: 15px; box-sizing: border-box; overflow-y: auto; }
-        .area-bottom { flex: 1; padding: 15px; box-sizing: border-box; overflow-y: auto; }
+        .container { display: flex; width: 100vw; height: 100vh; position: relative; z-index: 10; background: transparent; }
+        .col { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #333; background: transparent; text-shadow: 0 0 5px rgba(0,0,0,1); }
+        .col:last-child { border-right: none; }
+        .area-top { flex: 0 0 30vh; border-bottom: 2px solid #555; padding: 15px; box-sizing: border-box; background: transparent; overflow-y: auto; }
+        .area-bottom { flex: 1; padding: 15px; box-sizing: border-box; overflow-y: auto; background: transparent; }
+        h3 { margin-top: 0; font-size: 1rem; border-bottom: 1px solid #444; padding-bottom: 8px; display: flex; flex-direction: column; gap: 8px; text-shadow: 0 0 8px rgba(0,0,0,1); }
+        button { cursor: pointer; border: none; font-weight: bold; outline: none; }
+        .shop-tabs { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-start; }
+        .tab-btn { background: rgba(51, 51, 51, 0.8); color: #ccc; font-size: 0.6rem; padding: 4px 5px; border-radius: 2px; border: 1px solid #555; flex: 1 1 auto; }
+        .tab-btn.active { background: #800080; color: white; border-color: #f0f; }
+        #retire-trigger { width: 100%; height: 60%; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.8rem; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .shop-item { background: rgba(26, 26, 26, 0.9); margin-bottom: 5px; padding: 8px; border: 1px solid #444; cursor: pointer; font-size: 0.75rem; color: #ddd; display: flex; justify-content: space-between; align-items: center; }
+        .shop-item:hover { background: rgba(50, 50, 50, 0.9); color: white; }
+        .item-count { color: #f0f; font-weight: bold; margin-left: 10px; }
+        .main-btn-wrapper { display: flex; justify-content: space-between; align-items: center; height: 100%; padding: 0 5%; }
+        .main-btn { width: 48%; height: 60%; border-radius: 10px; border: 2px solid #555; position: relative; z-index: 20; box-shadow: 0 0 15px rgba(0,0,0,0.8); }
+        #through-btn { background-color: #fff; color: black; font-size: 1.5rem; }
+        #reward-btn { color: transparent; border: none; } 
+        .status-text { font-size: 0.95rem; line-height: 1.6; color: #eee; }
+        #log-list { list-style: none; padding: 0; margin: 0; font-size: 0.75rem; }
+        .log-entry { border-bottom: 1px dashed #333; padding: 10px 0; color: #bbb; line-height: 1.4; }
         
-        button { cursor: pointer; border: none; font-weight: bold; transition: 0.1s; border-radius: 5px; }
-        .main-btn { width: 48%; height: 60%; font-size: 1.2rem; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
-        #reward-btn { background: #fff; color: #000; }
-        #through-btn { background: #444; color: #fff; }
-        
-        #auth-area { font-size: 0.7rem; text-align: center; margin-top: 10px; border: 1px solid #444; padding: 8px; background: rgba(20,20,20,0.8); }
-        .user-name { color: #0f0; font-weight: bold; }
-        #sync-msg { color: #f0f; font-size: 0.6rem; height: 12px; margin-top: 4px; }
-        
-        #log-list { list-style: none; padding: 0; font-size: 0.7rem; color: #bbb; }
-        .log-entry { border-bottom: 1px solid #222; padding: 5px 0; line-height: 1.4; }
-        .danger-text { color: #f44; font-weight: bold; }
-        .bonus-text { color: #ff0; text-shadow: 0 0 5px #f00; }
-
-        .status-val { font-family: monospace; color: #0f0; font-size: 1.1rem; }
+        /* 認証UI */
+        #auth-area { margin-top: 10px; text-align: center; font-size: 0.7rem; }
+        #sync-status { color: #f0f; height: 15px; margin-top: 4px; }
+        .auth-btn { background: #4285f4; color: white; padding: 5px 10px; border-radius: 3px; font-size: 0.7rem; margin-bottom: 5px; }
     </style>
 </head>
 <body>
     <canvas id="visibility-canvas"></canvas>
-
     <div class="container">
         <div class="col">
             <div class="area-top">
-                <button id="retire-btn" style="width:100%; height:50px; background:#600; color:white; font-size:1.1rem;">リタイア（理由選択）</button>
+                <button id="retire-trigger">リタイア</button>
                 <div id="auth-area">
-                    <button id="login-btn" style="background:#4285f4; color:white; padding:8px 12px; margin-bottom:5px;">Googleでログイン</button>
-                    <div id="auth-status">未ログイン</div>
-                    <div id="sync-msg"></div>
+                    <button id="login-btn" class="auth-btn">Googleログイン</button>
+                    <div id="user-info">未ログイン</div>
+                    <div id="sync-status"></div>
                 </div>
             </div>
             <div class="area-bottom">
-                <h3 id="rank-title">SHOP (階層: 0)</h3>
+                <h3><span>SHOP</span><div class="shop-tabs" id="shop-tabs">
+                    <button class="tab-btn active" onclick="switchTab(0)">転生</button>
+                    <button class="tab-btn" onclick="switchTab(1)">即増</button>
+                </div></h3>
                 <div id="shop-container"></div>
             </div>
         </div>
-
         <div class="col">
-            <div class="area-top">
-                <h4 style="color:#f0f; margin:0; border-bottom:1px solid #f0f;">【犯罪相談窓口】</h4>
-                <p style="font-size:0.75rem; color:#ccc; line-height:1.6;">
-                    警察庁 匿名通報: 0120-924-839<br>
-                    法テラス: 0570-078374<br>
-                    貸金業相談: 0570-051-051
-                </p>
-            </div>
-            <div class="area-bottom" style="display:flex; justify-content:space-around; align-items:center;">
+            <div class="area-top"><h3>窓口</h3></div>
+            <div class="area-bottom"><div class="main-btn-wrapper">
                 <button id="through-btn" class="main-btn">スルー</button>
-                <button id="reward-btn" class="main-btn">報酬獲得</button>
-            </div>
+                <button id="reward-btn" class="main-btn"></button>
+            </div></div>
         </div>
-
         <div class="col">
-            <div class="area-top">
-                <p>報酬: <span id="money-disp" class="status-val">0</span></p>
-                <p>累計: <span id="total-disp" class="status-val">0</span></p>
-                <p>危険度: <span id="risk-disp" class="status-val">0.00</span>%</p>
-                <p id="bonus-status" style="font-weight:bold;"></p>
+            <div class="area-top status-text">
+                <p>報酬: <span id="money-disp">0</span></p>
+                <p>累計: <span id="total-money-disp">0</span></p>
+                <p>階層: <span id="rank-disp">0</span></p>
             </div>
-            <div class="area-bottom">
-                <h4>履歴ログ (直近100件)</h4>
-                <ul id="log-list"></ul>
-            </div>
+            <div class="area-bottom"><h3>履歴</h3><ul id="log-list"></ul></div>
         </div>
     </div>
 
@@ -81,7 +77,6 @@
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // あなたのプロジェクト構成情報
         const firebaseConfig = {
             apiKey: "AIzaSyAaTVoLldKTs_eqJzn-J9QpQL9-UaZK5XM",
             authDomain: "nowanarasensurusakushu.firebaseapp.com",
@@ -97,188 +92,74 @@
         const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
 
-        // 5. 経済成長とリセット (初期値)
-        let game = {
-            money: 0, totalMoney: 0, rank: 0, risk: 0,
-            currentReward: 1.0, 
-            isNextDeath: false, // 仕様3.1 強制リタイアフラグ
-            isNoRewardPeriod: false, // 仕様4.2 報酬不可期間
-            bonusCount: 0, // 仕様4.1 ボーナス残数
-            setCount: 0, 
-            bonusProb: 0, 
-            thruSucc: 0, thruFail: 0
-        };
-
+        let game = { money: 0, totalMoney: 0, currentReward: 1.0, rank: 0, risk: 0, rewardIncRate: 0.01, riskIncRate: 0.05, isNextDeath: false, currentTab: 0, shopCounts: { 0: [0], 1: Array(10).fill(0) } };
         let userUid = null;
 
         const dom = {
             money: document.getElementById('money-disp'),
-            total: document.getElementById('total-disp'),
-            risk: document.getElementById('risk-disp'),
+            totalMoney: document.getElementById('total-money-disp'),
+            rank: document.getElementById('rank-disp'),
             rewardBtn: document.getElementById('reward-btn'),
-            logList: document.getElementById('log-list'),
-            sync: document.getElementById('sync-msg'),
-            bonus: document.getElementById('bonus-status')
+            syncStatus: document.getElementById('sync-status'),
+            userInfo: document.getElementById('user-info')
         };
 
-        function addLog(msg, isDanger=false, isBonus=false) {
-            const li = document.createElement('li');
-            li.className = `log-entry ${isDanger ? 'danger-text' : ''} ${isBonus ? 'bonus-text' : ''}`;
-            li.innerText = `[階層${game.rank}] ${msg}`;
-            dom.logList.prepend(li);
-            if(dom.logList.children.length > 100) dom.logList.lastChild.remove();
-        }
-
-        async function syncData() {
-            if(!userUid) return;
-            dom.sync.innerText = "同期中...";
+        // 同期ロジック
+        async function syncToCloud() {
+            if (!userUid) return;
+            dom.syncStatus.innerText = "同期中...";
             try {
-                await setDoc(doc(db, "users", userUid), { game, updatedAt: Date.now() });
-                dom.sync.innerText = "クラウド同期完了";
-            } catch (e) {
-                dom.sync.innerText = "同期失敗（Firestoreの設定を確認）";
-            }
+                await setDoc(doc(db, "users", userUid), { game });
+                dom.syncStatus.innerText = "同期完了";
+            } catch (e) { dom.syncStatus.innerText = "同期エラー"; }
         }
 
-        // 3.1 報酬ボタンの二段階抽選ロジック
-        dom.rewardBtn.onclick = () => {
-            if(game.isNextDeath) {
-                processRetire("【破綻】不可視のリスクに接触しました。");
-                return;
-            }
-
-            // 4.1 報酬爆増ボーナス（接待モード）
-            if(game.bonusCount > 0) {
-                applyGain(20); 
-                game.bonusCount--;
-                if(game.bonusCount === 0) {
-                    game.isNoRewardPeriod = true; 
-                    addLog("接待モード終了。これより搾取（報酬不可期間）が始まります。", true);
-                }
-                updateUI();
-                return;
-            }
-
-            // 一回目判定
-            if(Math.random() * 100 < game.risk) {
-                game.isNextDeath = true;
-                addLog("警告：ボタンが変色。リスクが閾値を超えました。", true);
-                updateUI();
-                return;
-            }
-
-            // 二回目判定（再抽選）
-            if(Math.random() * 100 < game.bonusProb || Math.random() * 100 < game.risk) {
-                // 仕様4.1: 再抽選失敗または確率当選でボーナス発動
-                startBonus();
-                return;
-            }
-
-            // 回避成功
-            applyGain(1);
-            game.setCount++;
-            if(game.setCount >= 3) {
-                game.bonusProb += 0.02; // セットごとに確率蓄積
-                game.setCount = 0;
-            }
-            updateUI();
-            syncData();
-        };
-
-        function applyGain(mult) {
-            let d = 0.01 * (1 + game.rank); // 仕様5.1 公差
-            let gain = game.isNoRewardPeriod ? 0 : game.currentReward * mult;
-            
-            game.money += gain;
-            game.totalMoney += gain;
-            
-            if(!game.isNoRewardPeriod) {
-                game.currentReward += d;
-                game.risk += 0.05 + (game.rank * 0.02);
-            } else {
-                // 4.2 リスク加速 (10倍)
-                game.risk += (0.1 * (1 + game.risk));
-            }
-            game.risk = Math.min(99.9, game.risk);
-        }
-
-        function startBonus() {
-            game.bonusCount = 10;
-            addLog("★報酬爆増ボーナス発動★ (10回連続20倍)", false, true);
-            updateUI();
-        }
-
-        function processRetire(reason) {
-            alert(reason);
-            addLog(reason, true);
-            // 初期化
-            game.money = 0; game.risk = 0; game.isNextDeath = false;
-            game.isNoRewardPeriod = false; game.bonusCount = 0;
-            syncData();
-            updateUI();
-        }
-
-        document.getElementById('through-btn').onclick = () => {
-            if(game.isNextDeath) {
-                game.isNextDeath = false;
-                game.isNoRewardPeriod = false; // 復帰条件クリア
-                addLog("スルー成功：リスクを回避しました。");
-            } else {
-                game.currentReward = 1; // 仕様：報酬額リセット
-                addLog("スルー：安全を優先し報酬額が初期化されました。");
-            }
-            updateUI();
-            syncData();
-        };
-
-        function updateUI() {
-            dom.money.innerText = Math.floor(game.money).toLocaleString();
-            dom.total.innerText = Math.floor(game.totalMoney).toLocaleString();
-            dom.risk.innerText = game.risk.toFixed(2);
-            dom.bonus.innerText = game.bonusCount > 0 ? `接待モード：残り${game.bonusCount}回` : (game.isNoRewardPeriod ? "【報酬不可期間：リスク加速中】" : "");
-            dom.bonus.style.color = game.bonusCount > 0 ? "#ff0" : "#f44";
-            
-            // 3.2 視認性の相関
-            let n = game.risk;
-            let btnColor = 255 * (1 - n/100);
-            if(game.isNextDeath) {
-                dom.rewardBtn.style.backgroundColor = `rgb(${255 * (n/100)}, 0, 0)`;
-                dom.rewardBtn.innerText = "！？";
-            } else {
-                dom.rewardBtn.style.backgroundColor = `rgb(${btnColor}, ${btnColor}, ${btnColor})`;
-                dom.rewardBtn.innerText = "報酬獲得";
-            }
-        }
-
-        // Auth & 同期
         onAuthStateChanged(auth, async (user) => {
-            if(user) {
+            if (user) {
                 userUid = user.uid;
-                document.getElementById('auth-status').innerHTML = `Login: <span class="user-name">${user.displayName}</span>`;
-                const snap = await getDoc(doc(db, "users", userUid));
-                if(snap.exists()) {
-                    game = snap.data().game;
-                    addLog("クラウドからデータを復元しました。");
+                dom.userInfo.innerText = user.displayName + " としてログイン中";
+                const docSnap = await getDoc(doc(db, "users", userUid));
+                if (docSnap.exists()) {
+                    game = docSnap.data().game;
                     updateUI();
                 }
             }
         });
+
         document.getElementById('login-btn').onclick = () => signInWithPopup(auth, provider);
 
-        // 背景アニメ (動的視認性制御)
-        const canvas = document.getElementById('visibility-canvas'), ctx = canvas.getContext('2d');
-        function draw() {
-            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-            let time = Date.now() * 0.001;
-            let radius = 300 + Math.sin(time) * 100;
-            let grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, radius);
-            grad.addColorStop(0, 'rgba(80, 0, 120, 0.6)');
-            grad.addColorStop(1, 'black');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0,0,canvas.width,canvas.height);
-            requestAnimationFrame(draw);
+        function saveGame() {
+            localStorage.setItem('vicious_spiral_save', JSON.stringify(game));
+            syncToCloud();
         }
-        draw();
+
+        // --- 以下、元のゲームロジック ---
+        function updateUI() {
+            dom.money.innerText = Math.floor(game.money).toLocaleString();
+            dom.totalMoney.innerText = Math.floor(game.totalMoney).toLocaleString();
+            dom.rank.innerText = game.rank;
+        }
+
+        dom.rewardBtn.onclick = () => {
+            game.money += game.currentReward;
+            game.totalMoney += game.currentReward;
+            saveGame(); updateUI();
+        };
+
+        // 初期ロード
+        const saved = localStorage.getItem('vicious_spiral_save');
+        if (saved) game = JSON.parse(saved);
+        updateUI();
+
+        // アニメーション
+        const canvas = document.getElementById('visibility-canvas'), ctx = canvas.getContext('2d');
+        function animate() {
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            ctx.fillStyle = 'rgba(80, 0, 120, 0.2)';
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            requestAnimationFrame(animate);
+        }
+        animate();
     </script>
 </body>
 </html>
