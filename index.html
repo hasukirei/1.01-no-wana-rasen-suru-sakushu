@@ -11,30 +11,32 @@
         .col { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #333; background: transparent; text-shadow: 0 0 5px rgba(0,0,0,1); }
         .col:last-child { border-right: none; }
         .area-top { flex: 0 0 25vh; border-bottom: 2px solid #555; padding: 10px; box-sizing: border-box; background: transparent; overflow-y: auto; }
-        .area-mid { flex: 0 0 20vh; border-bottom: 2px solid #555; padding: 10px; box-sizing: border-box; background: rgba(20, 0, 20, 0.6); overflow-y: auto; }
+        .area-mid { flex: 0 0 20vh; border-bottom: 2px solid #555; padding: 10px; box-sizing: border-box; background: rgba(20, 0, 20, 0.7); overflow-y: auto; border-left: 4px solid #800080; }
         .area-bottom { flex: 1; padding: 10px; box-sizing: border-box; overflow-y: auto; background: transparent; }
-        h3 { margin-top: 0; font-size: 0.9rem; border-bottom: 1px solid #444; padding-bottom: 5px; display: flex; flex-direction: column; gap: 5px; }
-        button { cursor: pointer; border: none; font-weight: bold; outline: none; }
+        h3 { margin-top: 0; font-size: 0.85rem; border-bottom: 1px solid #444; padding-bottom: 5px; display: flex; flex-direction: column; gap: 3px; color: #f0f; }
+        button { cursor: pointer; border: none; font-weight: bold; outline: none; transition: 0.2s; }
         .shop-tabs { display: flex; flex-wrap: wrap; gap: 2px; }
         .tab-btn { background: rgba(51, 51, 51, 0.8); color: #ccc; font-size: 0.55rem; padding: 3px 5px; border: 1px solid #555; }
         .tab-btn.active { background: #800080; color: white; border-color: #f0f; }
-        #retire-trigger { width: 100%; height: 80%; background: #622; color: white; font-size: 1.5rem; }
-        .shop-item { background: rgba(26, 26, 26, 0.9); margin-bottom: 3px; padding: 5px; border: 1px solid #444; font-size: 0.7rem; display: flex; justify-content: space-between; }
+        #retire-trigger { width: 100%; height: 80%; background: #622; color: white; font-size: 1.5rem; border-radius: 4px; }
+        .shop-item { background: rgba(26, 26, 26, 0.9); margin-bottom: 3px; padding: 6px; border: 1px solid #444; font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center; }
         .main-btn-wrapper { display: flex; justify-content: space-between; height: 100%; padding: 0 5%; align-items: center; }
-        .main-btn { width: 48%; height: 60%; border-radius: 10px; border: 2px solid #555; }
-        #through-btn { background: #fff; color: black; font-size: 1.2rem; }
-        .status-text p { margin: 3px 0; font-size: 0.85rem; }
+        .main-btn { width: 48%; height: 65%; border-radius: 12px; border: 2px solid #555; }
+        #through-btn { background: #fff; color: black; font-size: 1.3rem; }
+        .status-text p { margin: 4px 0; font-size: 0.85rem; }
         #log-list { list-style: none; padding: 0; font-size: 0.7rem; }
-        .log-entry { border-bottom: 1px dashed #333; padding: 5px 0; color: #bbb; }
-        .rank-info { font-size: 0.8rem; color: #f0f; line-height: 1.4; }
-        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; border: 2px solid #f0f; padding: 20px; z-index: 1000; width: 280px; }
-        .modal-btn { width: 100%; padding: 10px; margin-top: 5px; }
+        .log-entry { border-bottom: 1px dashed #333; padding: 6px 0; color: #bbb; line-height: 1.3; }
+        .rank-info { font-size: 0.8rem; color: #eee; line-height: 1.5; }
+        .rank-info b { color: #f0f; font-size: 1rem; }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #111; border: 2px solid #f0f; padding: 25px; z-index: 1000; width: 280px; box-shadow: 0 0 20px #808; }
+        .modal-btn { width: 100%; padding: 12px; margin-top: 8px; font-size: 1rem; border-radius: 4px; }
     </style>
 </head>
 <body>
     <canvas id="visibility-canvas"></canvas>
     <div id="retire-modal" class="modal">
         <h3 style="color:#f0f; border:none; text-align:center;">リタイア確認</h3>
+        <p style="font-size:0.75rem; text-align:center;">すべてを失って逃げますか？</p>
         <button id="confirm-retire" class="modal-btn" style="background:#900; color:white;">確定して終了</button>
         <button id="cancel-retire" class="modal-btn" style="background:#444; color:white;">戻る</button>
     </div>
@@ -74,7 +76,7 @@
             </div>
             <div class="area-mid">
                 <h3>組織内ランクマッチ</h3>
-                <div id="match-info" class="rank-info">算出中...</div>
+                <div id="match-info" class="rank-info">初期化中...</div>
             </div>
             <div class="area-bottom">
                 <h3>履歴</h3>
@@ -92,8 +94,8 @@
             rank: 0, risk: 0, rewardIncRate: 0.01, riskIncRate: 0.05,
             thruSucc: 0, thruFail: 0, isNextDeath: false,
             currentTab: 0, shopCounts: { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) },
-            // ランクマッチ用
-            matchPoint: 100, lastMatchTime: Date.now(), highScore: 0
+            // ランクマッチ初期値：全員ランク1、ポイント0
+            matchPoint: 0, lastMatchTime: Date.now()
         };
 
         const dom = {
@@ -109,21 +111,20 @@
 
         function loadGame() {
             const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) Object.assign(game, JSON.parse(saved));
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                Object.assign(game, parsed);
+            }
             const savedLogs = localStorage.getItem(LOG_KEY);
             if (savedLogs) dom.logs.innerHTML = savedLogs;
             updateUI();
             runMatchSimulation();
         }
 
-        // スコア計算ロジック
-        function calcCurrentScore() {
-            return (game.rank * 1000) + (game.totalMoney * 0.01) + (game.thruSucc * 50) - (game.thruFail * 100);
-        }
-
-        function getRankName(pt) {
+        // ランク定義
+        function getRankInfo(pt) {
             if (pt < 300) return { r: Math.floor(pt/100)+1, n: "初等構成員" };
-            if (pt < 400) return { r: 4, n: "中堅監視役" };
+            if (pt < 400) return { r: 4, n: "分水嶺の監視役" };
             if (pt < 700) return { r: Math.floor((pt-400)/100)+5, n: "上級搾取官" };
             return { r: 8, n: "組織支配層" };
         }
@@ -133,16 +134,17 @@
             const hoursPassed = Math.floor((now - game.lastMatchTime) / (1000 * 60 * 60));
             
             if (hoursPassed > 0) {
-                let currentScore = calcCurrentScore();
                 for (let i = 0; i < hoursPassed; i++) {
-                    let info = getRankName(game.matchPoint);
-                    let win = Math.random() > 0.45; // 基本勝率
+                    let info = getRankInfo(game.matchPoint);
+                    // ゲームの成績（スコア）が良いほど勝率にボーナスが入る
+                    let myPower = (game.rank * 100) + (game.totalMoney * 0.001);
+                    let win = Math.random() < (0.5 + Math.min(0.3, myPower / 5000)); 
+                    
                     let a = 0, b = 0;
-
-                    if (info.r <= 3) { a = 25; b = 5; }
-                    else if (info.r === 4) { a = 15; b = 15; }
-                    else if (info.r <= 7) { a = 5; b = 25; }
-                    else { a = 2; b = 60; } // ランク8: 増えにくく極端に減る
+                    if (info.r <= 3) { a = 25; b = 5; } // 増えやすく減りにくい
+                    else if (info.r === 4) { a = 15; b = 15; } // 均衡
+                    else if (info.r <= 7) { a = 5; b = 25; } // 増えにくく減りやすい
+                    else { a = 2; b = 60; } // ランク8: 25勝しても1敗で台無し
 
                     game.matchPoint += win ? a : -b;
                     if (game.matchPoint < 0) game.matchPoint = 0;
@@ -151,16 +153,16 @@
                 saveGame();
             }
             updateRankDisplay();
-            setTimeout(runMatchSimulation, 60000); // 1分ごとにチェック
+            setTimeout(runMatchSimulation, 60000); 
         }
 
         function updateRankDisplay() {
-            let info = getRankName(game.matchPoint);
-            let text = `現在の階級: Rank ${info.r} [${info.n}]<br>Rating: ${Math.floor(game.matchPoint)} pt`;
+            let info = getRankInfo(game.matchPoint);
+            let text = `現在の階級: <b>Rank ${info.r}</b><br>肩書き: ${info.n}<br>Rating: ${Math.floor(game.matchPoint)} pt`;
             if (info.r === 8) {
-                let seed = Math.floor(game.matchPoint * 1.23) % 100;
-                let rankInTop = seed + 1; 
-                text += `<br><span style="color:#0ff;">順位: 世界 ${rankInTop} 位 / TOP 1%</span>`;
+                // ポイントに基づいて1位〜100位をランダムっぽく変動させる
+                let rankInTop = Math.max(1, 100 - Math.floor((game.matchPoint - 700) / 5));
+                text += `<br><span style="color:#0ff;">順位: 世界 ${rankInTop} 位 (TOP 1%)</span>`;
             }
             dom.matchInfo.innerHTML = text;
         }
@@ -172,11 +174,11 @@
             dom.thruSucc.innerText = game.thruSucc;
             dom.thruFail.innerText = game.thruFail;
             renderShop();
-            dom.rewardBtn.style.backgroundColor = game.isNextDeath ? `rgb(100,0,100)` : "#fff";
+            dom.rewardBtn.style.backgroundColor = game.isNextDeath ? `rgb(150,0,150)` : "#fff";
         }
 
         dom.rewardBtn.onclick = () => {
-            if (game.isNextDeath) { processRetire("【強制破綻】", true); return; }
+            if (game.isNextDeath) { processRetire("【組織によるトカゲの尻尾切り】", true); return; }
             let fail = Math.random() * 100 < game.risk;
             let gain = fail ? (game.isNextDeath = true, game.currentReward * 0.5) : game.currentReward;
             game.money += gain; game.totalMoney += gain;
@@ -191,7 +193,7 @@
             saveGame(); updateUI();
         };
 
-        function switchTab(i) { game.currentTab = i; updateUI(); }
+        function switchTab(i) { game.currentTab = i; renderShop(); }
 
         function renderShop() {
             dom.shop.innerHTML = "";
@@ -201,7 +203,7 @@
                 const cost = Math.floor(base * Math.pow(1.2, count));
                 let div = document.createElement('div');
                 div.className = 'shop-item';
-                div.innerHTML = `<span>${label}(${cost})</span><span>[${count}]</span>`;
+                div.innerHTML = `<span>${label}(${cost.toLocaleString()})</span><span>[${count}]</span>`;
                 div.onclick = () => { if(game.money >= cost){ game.money-=cost; game.shopCounts[t][i]++; click(); saveGame(); updateUI(); } };
                 if (game.currentTab === t) dom.shop.appendChild(div);
             };
@@ -209,6 +211,8 @@
             for(let i=0; i<5; i++) {
                 createItem(1, i, "即増", 300*(i+1)*r, () => { game.currentReward+=(i+1)*0.1; game.risk+= (i+1)*2; });
                 createItem(2, i, "即減", 500*(i+1)*r, () => { game.currentReward-=(i+1)*1; game.risk-=(i+1)*0.2; });
+                createItem(3, i, "増率+", 1000*(i+1)*r, () => { game.rewardIncRate+=0.002; });
+                createItem(4, i, "抑制-", 1500*(i+1)*r, () => { game.riskIncRate=Math.max(0.01, game.riskIncRate-0.005); });
             }
         }
 
@@ -221,9 +225,13 @@
 
         function processRetire(txt, reset) {
             const li = document.createElement('li'); li.className = 'log-entry';
-            li.innerHTML = `<span>${txt}</span> 階層:${game.rank} 累計:${Math.floor(game.totalMoney)}`;
+            li.innerHTML = `<span>${txt}</span><br>到達階層:${game.rank} / 累計:${Math.floor(game.totalMoney).toLocaleString()}`;
             dom.logs.prepend(li); localStorage.setItem(LOG_KEY, dom.logs.innerHTML);
-            if(reset) { game.rank=0; game.totalMoney=0; game.matchPoint = Math.floor(game.matchPoint * 0.7); resetCycle(); }
+            if(reset) {
+                game.rank=0; game.totalMoney=0; game.money=0;
+                game.matchPoint = Math.floor(game.matchPoint * 0.5); // 破綻・引退で評価も半減
+                resetCycle();
+            }
             saveGame(); updateUI();
         }
 
@@ -236,9 +244,9 @@
         function anim() {
             canvas.width = window.innerWidth; canvas.height = window.innerHeight;
             ctx.clearRect(0,0,canvas.width,canvas.height);
-            pR += pD; if(pR > 300 || pR < 100) pD *= -1;
+            pR += pD * 1.5; if(pR > 400 || pR < 100) pD *= -1;
             let g = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, pR);
-            g.addColorStop(0, 'rgba(80,0,80,0.4)'); g.addColorStop(1, 'transparent');
+            g.addColorStop(0, 'rgba(60,0,80,0.4)'); g.addColorStop(1, 'transparent');
             ctx.fillStyle = g; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, pR, 0, Math.PI*2); ctx.fill();
             requestAnimationFrame(anim);
         }
