@@ -6,7 +6,9 @@
     <title>1.01の罠 — 螺旋する搾取 —</title>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: black; color: white; font-family: sans-serif; }
+        /* 心臓の鼓動演出用キャンバス */
         #visibility-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        
         .container { display: flex; width: 100vw; height: 100vh; position: relative; z-index: 10; background: transparent; }
         .col { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #333; background: transparent; text-shadow: 0 0 5px rgba(0,0,0,1); }
         .col:last-child { border-right: none; }
@@ -26,18 +28,45 @@
         #through-btn { background-color: #fff; color: black; font-size: 1.5rem; }
         #reward-btn { color: transparent; border: none; } 
         .status-text { font-size: 0.8rem; line-height: 1.4; color: #eee; }
-        #log-list { list-style: none; padding: 0; margin: 0; font-size: 0.75rem; }
-
+        
         #google-auth-area { margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
         .auth-controls { display: flex; gap: 5px; align-items: center; }
         .mini-btn { background: #333; color: #eee; font-size: 0.6rem; padding: 5px 8px; border: 1px solid #555; border-radius: 3px; }
         #auth-status-label { font-size: 0.7rem; color: #aaa; }
         .user-name { color: #0f0; font-weight: bold; }
         #sync-msg { font-size: 0.6rem; color: #f0f; height: 12px; }
+
+        /* リタイアモーダル */
+        #retire-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 100; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #1a1a1a; padding: 20px; border: 1px solid #555; border-radius: 8px; width: 280px;
+        }
+        .modal-content h4 { margin-top: 0; color: #ff4444; border-bottom: 1px solid #444; padding-bottom: 10px; }
+        .reason-item { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 0.9rem; }
+        .modal-btns { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .confirm-btn { background: #600; color: white; padding: 5px 15px; border-radius: 3px; }
+        .cancel-btn { background: #444; color: white; padding: 5px 15px; border-radius: 3px; }
     </style>
 </head>
 <body>
     <canvas id="visibility-canvas"></canvas>
+
+    <div id="retire-modal">
+        <div class="modal-content">
+            <h4>リタイアの理由</h4>
+            <div class="reason-item"><input type="checkbox" class="retire-reason" id="r1"><label for="r1">身の危険を感じた</label></div>
+            <div class="reason-item"><input type="checkbox" class="retire-reason" id="r2"><label for="r2">良心の呵責</label></div>
+            <div class="reason-item"><input type="checkbox" class="retire-reason" id="r3"><label for="r3">充分に稼いだ</label></div>
+            <div class="reason-item"><input type="checkbox" class="retire-reason" id="r4"><label for="r4">精神的限界</label></div>
+            <div class="modal-btns">
+                <button class="cancel-btn" id="retire-cancel">戻る</button>
+                <button class="confirm-btn" id="retire-confirm">実行</button>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         <div class="col">
@@ -75,7 +104,7 @@
                 </p>
             </div>
             <div class="area-bottom"><div class="main-btn-wrapper">
-                <button id="through-btn" class="main-btn">スルー</button>
+                <button id="through-btn" class="main-btn">回避</button>
                 <button id="reward-btn" class="main-btn"></button>
             </div></div>
         </div>
@@ -94,7 +123,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -125,7 +154,7 @@
             shop: document.getElementById('shop-container'),
             authStatus: document.getElementById('auth-status-label'),
             syncMsg: document.getElementById('sync-msg'),
-            retire: document.getElementById('retire-trigger')
+            modal: document.getElementById('retire-modal')
         };
 
         const updateUI = () => {
@@ -137,31 +166,29 @@
             renderShop();
         };
 
-        const saveGame = async () => {
-            localStorage.setItem('vicious_save', JSON.stringify(game));
-            if (userUid) {
-                try {
-                    await setDoc(doc(db, "users", userUid), { game });
-                    dom.syncMsg.innerText = "同期完了";
-                    setTimeout(() => dom.syncMsg.innerText = "", 2000);
-                } catch (e) {}
-            }
-        };
-
-        // 認証処理
-        const login = async () => {
+        const syncToCloud = async () => {
+            if (!userUid) return;
             try {
-                await setPersistence(auth, browserLocalPersistence);
-                await signInWithPopup(auth, provider);
+                await setDoc(doc(db, "users", userUid), { game });
+                dom.syncMsg.innerText = "同期完了";
+                setTimeout(() => dom.syncMsg.innerText = "", 2000);
             } catch (e) {}
         };
-        const logout = async () => {
-            try { await signOut(auth); userUid = null; dom.authStatus.innerText = "未ログイン"; } catch (e) {}
+
+        const saveGame = () => {
+            localStorage.setItem('vicious_save', JSON.stringify(game));
+            syncToCloud();
         };
 
-        document.getElementById('login-btn').onclick = login;
-        document.getElementById('change-btn').onclick = login;
-        document.getElementById('logout-btn').onclick = logout;
+        // 認証
+        const handleAuth = async () => {
+            try { await signInWithPopup(auth, provider); } catch (e) {}
+        };
+        document.getElementById('login-btn').onclick = handleAuth;
+        document.getElementById('change-btn').onclick = handleAuth;
+        document.getElementById('logout-btn').onclick = async () => {
+            try { await signOut(auth); userUid = null; dom.authStatus.innerText = "未ログイン"; } catch (e) {}
+        };
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -172,13 +199,13 @@
             }
         });
 
-        // リタイア処理
-        dom.retire.onclick = () => {
-            if(confirm("すべてを失い、最初からやり直しますか？")){
-                game = { money: 0, totalMoney: 0, currentReward: 1.0, rank: 0, risk: 0, rewardIncRate: 0.01, riskIncRate: 0.05, isNextDeath: false, thruSucc: 0, thruFail: 0, currentTab: 0, shopCounts: { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) } };
-                saveGame();
-                updateUI();
-            }
+        // リタイア
+        document.getElementById('retire-trigger').onclick = () => { dom.modal.style.display = 'flex'; };
+        document.getElementById('retire-cancel').onclick = () => { dom.modal.style.display = 'none'; };
+        document.getElementById('retire-confirm').onclick = () => {
+            game = { money: 0, totalMoney: 0, currentReward: 1.0, rank: 0, risk: 0, rewardIncRate: 0.01, riskIncRate: 0.05, isNextDeath: false, thruSucc: 0, thruFail: 0, currentTab: 0, shopCounts: { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) } };
+            saveGame(); updateUI(); dom.modal.style.display = 'none';
+            document.querySelectorAll('.retire-reason').forEach(c => c.checked = false);
         };
 
         window.switchTab = (idx) => { game.currentTab = idx; document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === idx)); renderShop(); };
@@ -206,39 +233,4 @@
                 });
             } else if (game.currentTab === 1) {
                 for(let i=0; i<10; i++){
-                    let rv = (i+1)*0.05, kv = (i+1)*2.0;
-                    createItem(1, i, `報酬:+${rv.toFixed(2)} / リスク:+${kv.toFixed(1)}`, 300 * (i+1) * r, () => { game.currentReward += rv; game.risk = Math.min(99.9, game.risk + kv); });
-                }
-            } else if (game.currentTab === 2) {
-                for(let i=0; i<10; i++){
-                    let rv = (i+1)*2.0, kv = (i+1)*0.1;
-                    createItem(2, i, `報酬:-${rv.toFixed(1)} / リスク:-${kv.toFixed(2)}`, 500 * (i+1) * r, () => { game.currentReward = Math.max(1, game.currentReward - rv); game.risk = Math.max(0, game.risk - kv); });
-                }
-            } else if (game.currentTab === 3) {
-                for(let i=0; i<10; i++){
-                    let rv = (i+1)*0.002, kv = (i+1)*0.05;
-                    createItem(3, i, `報酬増率:+${rv.toFixed(4)} / リスク増率:+${kv.toFixed(3)}`, 1000 * (i+1) * r, () => { game.rewardIncRate += rv; game.riskIncRate += kv; });
-                }
-            } else if (game.currentTab === 4) {
-                for(let i=0; i<10; i++){
-                    let rv = (i+1)*0.01, kv = (i+1)*0.001;
-                    createItem(4, i, `報酬増率:-${rv.toFixed(3)} / リスク増率:-${kv.toFixed(4)}`, 2000 * (i+1) * r, () => { game.rewardIncRate = Math.max(0, game.rewardIncRate - rv); game.riskIncRate = Math.max(0.01, game.riskIncRate - kv); });
-                }
-            }
-        }
-
-        const saved = localStorage.getItem('vicious_save');
-        if (saved) game = JSON.parse(saved);
-        updateUI();
-
-        const canvas = document.getElementById('visibility-canvas'), ctx = canvas.getContext('2d');
-        function animate() {
-            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-            ctx.fillStyle = 'rgba(80, 0, 120, 0.1)';
-            ctx.fillRect(0,0,canvas.width,canvas.height);
-            requestAnimationFrame(animate);
-        }
-        animate();
-    </script>
-</body>
-</html>
+                    let rv = (i+1)*0.05, kv = (i+1)*2.
