@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>1.01の罠 — 螺旋する搾取 —</title>
+    <title>1.01의 罠 — 螺旋する搾取 —</title>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
-        /* ダブルタップズームを徹底的に禁止 */
-        html, body, button, .shop-item, .main-btn { 
+        /* スマホ連打での拡大を徹底的に禁止 */
+        html, body, button, .shop-item, .main-btn, label, input { 
             touch-action: manipulation; 
         }
         body, html { margin: 0; padding: 0; min-height: 100%; background-color: black; color: white; font-family: sans-serif; overflow-x: hidden; }
@@ -23,7 +23,7 @@
         .shop-tabs { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-start; }
         .tab-btn { background: rgba(51, 51, 51, 0.8); color: #ccc; font-size: 0.6rem; padding: 4px 5px; border-radius: 2px; border: 1px solid #555; flex: 1 1 auto; }
         .tab-btn.active { background: #800080; color: white; border-color: #f0f; }
-        #retire-trigger { width: 100%; height: 80%; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.8rem; border-radius: 5px; }
+        #retire-trigger { width: 100%; height: 60px; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.5rem; border-radius: 5px; }
         .shop-item { background: rgba(26, 26, 26, 0.9); margin-bottom: 5px; padding: 8px; border: 1px solid #444; cursor: pointer; font-size: 0.75rem; color: #ddd; display: flex; justify-content: space-between; align-items: center; }
         .item-detail { font-size: 0.6rem; color: #aaa; display: block; }
         .main-btn-wrapper { display: flex; justify-content: space-between; align-items: center; height: 100%; padding: 0 5%; }
@@ -36,7 +36,8 @@
         #log-list { list-style: none; padding: 0; margin: 0; font-size: 0.75rem; }
         .log-entry { border-bottom: 1px dashed #333; padding: 10px 0; color: #bbb; line-height: 1.4; }
         .log-entry span { color: #f0f; font-weight: bold; }
-        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(17, 17, 17, 0.95); border: 2px solid #f0f; padding: 25px; z-index: 1000; width: 320px; }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(17, 17, 17, 0.95); border: 2px solid #f0f; padding: 25px; z-index: 1000; width: 320px; box-shadow: 0 0 30px rgba(128,0,128,0.5); }
+        .reason-item { display: block; margin: 12px 0; cursor: pointer; font-size: 1.1rem; color: #ccc; }
         .modal-btn { width: 100%; padding: 12px; color: white; margin-top: 10px; font-size: 1.2rem; }
         footer { background: #111; color: #666; padding: 30px 15px; font-size: 0.75rem; border-top: 1px solid #333; position: relative; z-index: 100; }
     </style>
@@ -48,6 +49,10 @@
     <div id="retire-modal" class="modal">
         <h3 style="color:#f0f; border:none; text-align:center;">リタイア確認</h3>
         <p style="font-size:0.8rem; color:#aaa; text-align:center;">すべてを失って逃げますか？</p>
+        <label class="reason-item"><input type="checkbox" name="reason" value="身の危険"> 身の危険を感じた</label>
+        <label class="reason-item"><input type="checkbox" name="reason" value="良心"> 良心の呵責</label>
+        <label class="reason-item"><input type="checkbox" name="reason" value="満足"> 充分に稼いだ</label>
+        <label class="reason-item"><input type="checkbox" name="reason" value="限界"> 精神的限界</label>
         <button id="confirm-retire" class="modal-btn" style="background:#900;">確定して終了</button>
         <button id="cancel-retire" class="modal-btn" style="background:#444;">戻る</button>
     </div>
@@ -147,12 +152,7 @@
             syncStatus: document.getElementById('sync-status')
         };
 
-        // Googleログイン同期（簡易）
-        function handleCredentialResponse(response) {
-            dom.syncStatus.innerText = "Cloud: 同期済み";
-            // ログイン時にローカルと同期（本来はサーバー連携ですが、ここでは接続成功としてフラグ管理）
-            saveGame();
-        }
+        function handleCredentialResponse(r) { dom.syncStatus.innerText = "Cloud: 同期済み"; saveGame(); }
 
         function saveGame() { localStorage.setItem(STORAGE_KEY, JSON.stringify(game)); }
 
@@ -177,9 +177,8 @@
             const hrs = Math.floor((now - game.lastMatchTime) / 3600000);
             if (hrs > 0) {
                 for (let i = 0; i < hrs; i++) {
-                    let info = getRankInfo(game.matchPoint);
                     let win = Math.random() < (0.5 + Math.min(0.3, (game.rank * 100) / 5000)); 
-                    game.matchPoint += win ? (info.r <= 3 ? 25 : 5) : (info.r >= 8 ? -60 : -15);
+                    game.matchPoint += win ? 15 : -20;
                 }
                 game.lastMatchTime = now; saveGame();
             }
@@ -236,7 +235,7 @@
         }
 
         dom.rewardBtn.onclick = () => {
-            if (game.isNextDeath) { processDeath("破綻"); return; }
+            if (game.isNextDeath) { processDeath("破綻", []); return; }
             if (Math.random() * 100 < game.risk) { game.isNextDeath = true; game.money += game.currentReward * 0.5; }
             else { game.money += game.currentReward; game.totalMoney += game.currentReward; }
             game.currentReward += game.rewardIncRate; game.risk = Math.min(99, game.risk + game.riskIncRate);
@@ -251,19 +250,25 @@
 
         function resetSpiral() { game.risk = 0; game.isNextDeath = false; game.currentReward = 1.0; saveGame(); updateUI(); }
 
-        function processDeath(type) {
+        function processDeath(type, reasons) {
+            const reasonStr = reasons.length > 0 ? ` [理由:${reasons.join(',')}]` : "";
             const li = document.createElement('li'); li.className = 'log-entry';
-            li.innerHTML = `<span>【${type}】</span> 階層:${game.rank} 累計:${Math.floor(game.totalMoney).toLocaleString()}`;
+            li.innerHTML = `<span>【${type}】</span> 階層:${game.rank} 累計:${Math.floor(game.totalMoney).toLocaleString()}${reasonStr}`;
             dom.logs.prepend(li);
             localStorage.setItem(LOG_KEY, dom.logs.innerHTML);
-            // 初期化（回避成/失も含む）
             game.money=0; game.totalMoney=0; game.rank=0; game.matchPoint*=0.5; game.thruSucc=0; game.thruFail=0;
             resetSpiral();
         }
 
         document.getElementById('retire-trigger').onclick = () => dom.modal.style.display = 'block';
         document.getElementById('cancel-retire').onclick = () => dom.modal.style.display = 'none';
-        document.getElementById('confirm-retire').onclick = () => { processDeath("自発リタイア"); dom.modal.style.display = 'none'; };
+        document.getElementById('confirm-retire').onclick = () => {
+            const reasons = Array.from(document.querySelectorAll('input[name="reason"]:checked')).map(cb => cb.value);
+            processDeath("自発リタイア", reasons);
+            dom.modal.style.display = 'none';
+            // チェックをリセット
+            document.querySelectorAll('input[name="reason"]').forEach(cb => cb.checked = false);
+        };
 
         const canvas = document.getElementById('visibility-canvas'), ctx = canvas.getContext('2d');
         let pulseRadius = 100, pulseDir = 1;
