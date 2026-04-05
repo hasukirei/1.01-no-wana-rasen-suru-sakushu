@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>1.01の罠 — 螺旋する搾取 —</title>
+    <meta name="description" content="1.01倍の報酬が、あなたを狂わせる。クリックするだけで増え続ける数字。白く染まっていくボタン。効率を求めるすべてのプレイヤーに贈る、静かなる搾取の記録。">
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: black; color: white; font-family: sans-serif; }
         #visibility-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
@@ -17,7 +18,9 @@
         .shop-tabs { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-start; }
         .tab-btn { background: rgba(51, 51, 51, 0.8); color: #ccc; font-size: 0.6rem; padding: 4px 5px; border-radius: 2px; border: 1px solid #555; flex: 1 1 auto; }
         .tab-btn.active { background: #800080; color: white; border-color: #f0f; }
-        #retire-trigger { width: 100%; height: 80%; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.8rem; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        #retire-trigger { width: 100%; height: 60%; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.8rem; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        /* 逆説的共有ボタンのスタイル */
+        #share-btn { width: 100%; margin-top: 10px; background: #000; color: #ff00ff; border: 1px dashed #f0f; padding: 8px; border-radius: 4px; font-size: 0.65rem; opacity: 0.8; }
         .shop-item { background: rgba(26, 26, 26, 0.9); margin-bottom: 5px; padding: 8px; border: 1px solid #444; cursor: pointer; font-size: 0.75rem; color: #ddd; display: flex; justify-content: space-between; align-items: center; }
         .shop-item:hover { background: rgba(50, 50, 50, 0.9); color: white; }
         .item-count { color: #f0f; font-weight: bold; margin-left: 10px; }
@@ -51,7 +54,10 @@
 
     <div class="container">
         <div class="col">
-            <div class="area-top"><button id="retire-trigger">リタイア</button></div>
+            <div class="area-top">
+                <button id="retire-trigger">リタイア</button>
+                <button id="share-btn">拡散や共有をするのはやめてください。お願いします(´°̥̥̥̥̥̥̥̥ω°̥̥̥̥̥̥̥̥｀)</button>
+            </div>
             <div class="area-bottom">
                 <h3>
                     <span>SHOP (悪意の均衡)</span>
@@ -123,16 +129,12 @@
             retireTrigger: document.getElementById('retire-trigger'),
             confirmRetire: document.getElementById('confirm-retire'),
             cancelRetire: document.getElementById('cancel-retire'),
-            tabs: document.querySelectorAll('.tab-btn')
+            tabs: document.querySelectorAll('.tab-btn'),
+            shareBtn: document.getElementById('share-btn')
         };
 
-        function saveGame() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(game));
-        }
-
-        function saveLogs() {
-            localStorage.setItem(LOG_KEY, dom.logs.innerHTML);
-        }
+        function saveGame() { localStorage.setItem(STORAGE_KEY, JSON.stringify(game)); }
+        function saveLogs() { localStorage.setItem(LOG_KEY, dom.logs.innerHTML); }
 
         function loadGame() {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -146,14 +148,11 @@
         }
 
         function initGame(resetTotal = false) {
-            if (resetTotal) {
-                game.rank = 0;
-                game.totalMoney = 0;
-            }
+            if (resetTotal) { game.rank = 0; game.totalMoney = 0; }
             game.rewardIncRate = 0.01 + (game.rank * 0.005);
             game.riskIncRate = 0.05 + (game.rank * 0.02);
             game.currentReward = 1.0;
-            game.money = 0; // 初期報酬を0に設定
+            game.money = 0;
             game.risk = 0;
             game.isNextDeath = false;
             game.thruSucc = 0;
@@ -187,6 +186,22 @@
             updateUI();
         };
 
+        // 共有ボタンのイベント：逆説的なメッセージを送信
+        dom.shareBtn.onclick = async () => {
+            const shareData = {
+                title: '1.01の罠 — 螺旋する搾取 —',
+                text: '共有拡散されるのだけはほんとに(´°̥̥̥̥̥̥̥̥ω°̥̥̥̥̥̥̥̥｀)なのでやめてください。',
+                url: window.location.href
+            };
+            try {
+                if (navigator.share) { await navigator.share(shareData); }
+                else { 
+                    await navigator.clipboard.writeText(shareData.url); 
+                    alert('共有を阻止できませんでした（URLをコピーしました）。拡散しないでください…(´°̥̥̥̥̥̥̥̥ω°̥̥̥̥̥̥̥̥｀)');
+                }
+            } catch (err) {}
+        };
+
         function renderShop() {
             dom.shop.innerHTML = "";
             const r = game.rank + 1;
@@ -195,29 +210,25 @@
                 const currentCost = Math.floor(baseCost * Math.pow(1.1, count));
                 let div = document.createElement('div');
                 div.className = 'shop-item';
-                div.innerHTML = `<span>${label} (コスト: ${currentCost.toLocaleString()})</span><span class="item-count">[${count}回]</span>`;
+                div.innerHTML = `<span>${label} (${currentCost.toLocaleString()})</span><span class="item-count">[${count}]</span>`;
                 div.onclick = () => { 
                     if (game.money >= currentCost) { 
                         game.money -= currentCost; 
                         game.shopCounts[tabIdx][itemIdx]++;
                         onClick();
-                        saveGame(); 
-                        updateUI(); 
+                        saveGame(); updateUI(); 
                     } 
                 };
                 dom.shop.appendChild(div);
             };
 
             if (game.currentTab === 0) {
-                createItem(0, 0, "次なる搾取へ", 200000 * Math.pow(2, game.rank), () => { 
-                    game.rank++; 
-                    processRebirth(); 
-                });
+                createItem(0, 0, "次なる搾取へ", 200000 * Math.pow(2, game.rank), () => { game.rank++; processRebirth(); });
             } 
             else if (game.currentTab === 1) {
                 for(let i=0; i<10; i++){
                     let rv = (i+1)*0.05, kv = (i+1)*2.0;
-                    createItem(1, i, `報酬:+${rv.toFixed(2)} / リスク:+${kv.toFixed(1)}`, 300 * (i+1) * r, () => {
+                    createItem(1, i, `報酬:+${rv.toFixed(2)}/リスク:+${kv.toFixed(1)}`, 300 * (i+1) * r, () => {
                         game.currentReward += rv; game.risk = Math.min(99.9, game.risk + kv);
                     });
                 }
@@ -225,7 +236,7 @@
             else if (game.currentTab === 2) {
                 for(let i=0; i<10; i++){
                     let rv = (i+1)*2.0, kv = (i+1)*0.1;
-                    createItem(2, i, `報酬:-${rv.toFixed(1)} / リスク:-${kv.toFixed(2)}`, 500 * (i+1) * r, () => {
+                    createItem(2, i, `報酬:-${rv.toFixed(1)}/リスク:-${kv.toFixed(2)}`, 500 * (i+1) * r, () => {
                         game.currentReward = Math.max(1, game.currentReward - rv); game.risk = Math.max(0, game.risk - kv);
                     });
                 }
@@ -233,7 +244,7 @@
             else if (game.currentTab === 3) {
                 for(let i=0; i<10; i++){
                     let rv = (i+1)*0.002, kv = (i+1)*0.05;
-                    createItem(3, i, `報酬増率:+${rv.toFixed(4)} / リスク増率:+${kv.toFixed(3)}`, 1000 * (i+1) * r, () => {
+                    createItem(3, i, `報酬増率:+${rv.toFixed(4)}/リスク増率:+${kv.toFixed(3)}`, 1000 * (i+1) * r, () => {
                         game.rewardIncRate += rv; game.riskIncRate += kv;
                     });
                 }
@@ -241,7 +252,7 @@
             else if (game.currentTab === 4) {
                 for(let i=0; i<10; i++){
                     let rv = (i+1)*0.01, kv = (i+1)*0.001;
-                    createItem(4, i, `報酬増率:-${rv.toFixed(3)} / リスク増率:-${kv.toFixed(4)}`, 2000 * (i+1) * r, () => {
+                    createItem(4, i, `報酬増率:-${rv.toFixed(3)}/リスク増率:-${kv.toFixed(4)}`, 2000 * (i+1) * r, () => {
                         game.rewardIncRate = Math.max(0, game.rewardIncRate - rv); game.riskIncRate = Math.max(0.01, game.riskIncRate - kv);
                     });
                 }
@@ -255,32 +266,24 @@
             dom.thruSucc.innerText = game.thruSucc;
             dom.thruFail.innerText = game.thruFail;
             renderShop();
-            if (game.isNextDeath) {
-                let v = 255 * (game.risk / 100);
-                dom.rewardBtn.style.backgroundColor = `rgb(${v}, ${v}, ${v})`;
-            } else {
-                dom.rewardBtn.style.backgroundColor = "rgb(255, 255, 255)";
-            }
+            dom.rewardBtn.style.backgroundColor = game.isNextDeath ? `rgb(${255 * (game.risk / 100)}, ${255 * (game.risk / 100)}, ${255 * (game.risk / 100)})` : "rgb(255, 255, 255)";
         }
 
         function processRebirth() {
-            game.risk = 0;
-            game.isNextDeath = false;
+            game.risk = 0; game.isNextDeath = false;
             game.shopCounts = { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) };
             game.rewardIncRate = 0.01 + (game.rank * 0.005);
             game.riskIncRate = 0.05 + (game.rank * 0.02);
             game.currentReward = 1.0;
-            saveGame();
-            updateUI();
+            saveGame(); updateUI();
         }
 
         function processRetire(txt, resetTotal) {
             const li = document.createElement('li');
             li.className = 'log-entry';
-            li.innerHTML = `<span>${txt}</span><br>到達階層: ${game.rank}<br>累計: ${Math.floor(game.totalMoney).toLocaleString()}<br>回避成功: ${game.thruSucc} | 回避失敗: ${game.thruFail}`;
+            li.innerHTML = `<span>${txt}</span><br>到達階層: ${game.rank}<br>累計: ${Math.floor(game.totalMoney).toLocaleString()}<br>回避成功: ${game.thruSucc} | 失敗: ${game.thruFail}`;
             dom.logs.prepend(li);
-            saveLogs();
-            initGame(resetTotal);
+            saveLogs(); initGame(resetTotal);
         }
 
         dom.retireTrigger.onclick = () => { dom.modal.style.display = 'block'; };
@@ -310,8 +313,7 @@
             requestAnimationFrame(animatePulse);
         }
 
-        loadGame(); 
-        animatePulse();
+        loadGame(); animatePulse();
     </script>
 </body>
 </html>
