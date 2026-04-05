@@ -94,7 +94,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -124,16 +124,39 @@
             rewardBtn: document.getElementById('reward-btn'),
             shop: document.getElementById('shop-container'),
             authStatus: document.getElementById('auth-status-label'),
-            syncMsg: document.getElementById('sync-msg')
+            syncMsg: document.getElementById('sync-msg'),
+            retire: document.getElementById('retire-trigger')
         };
 
-        // ログイン・アカウント変更
-        const login = async () => {
-            try { await signInWithPopup(auth, provider); } catch (e) {}
+        const updateUI = () => {
+            dom.money.innerText = Math.floor(game.money).toLocaleString();
+            dom.total.innerText = Math.floor(game.totalMoney).toLocaleString();
+            dom.rank.innerText = game.rank;
+            dom.thruSucc.innerText = game.thruSucc;
+            dom.thruFail.innerText = game.thruFail;
+            renderShop();
         };
-        // ログアウト
+
+        const saveGame = async () => {
+            localStorage.setItem('vicious_save', JSON.stringify(game));
+            if (userUid) {
+                try {
+                    await setDoc(doc(db, "users", userUid), { game });
+                    dom.syncMsg.innerText = "同期完了";
+                    setTimeout(() => dom.syncMsg.innerText = "", 2000);
+                } catch (e) {}
+            }
+        };
+
+        // 認証処理
+        const login = async () => {
+            try {
+                await setPersistence(auth, browserLocalPersistence);
+                await signInWithPopup(auth, provider);
+            } catch (e) {}
+        };
         const logout = async () => {
-            try { await signOut(auth); } catch (e) {}
+            try { await signOut(auth); userUid = null; dom.authStatus.innerText = "未ログイン"; } catch (e) {}
         };
 
         document.getElementById('login-btn').onclick = login;
@@ -146,37 +169,19 @@
                 dom.authStatus.innerHTML = `ログイン中: <span class="user-name">${user.displayName}</span>`;
                 const snap = await getDoc(doc(db, "users", userUid));
                 if (snap.exists()) { game = snap.data().game; updateUI(); }
-            } else {
-                userUid = null;
-                dom.authStatus.innerText = "未ログイン";
             }
         });
 
-        async function syncToCloud() {
-            if (!userUid) return;
-            try {
-                await setDoc(doc(db, "users", userUid), { game });
-                dom.syncMsg.innerText = "同期完了";
-                setTimeout(() => dom.syncMsg.innerText = "", 2000);
-            } catch (e) {}
-        }
-
-        function saveGame() {
-            localStorage.setItem('vicious_save', JSON.stringify(game));
-            syncToCloud();
-        }
-
-        function updateUI() {
-            dom.money.innerText = Math.floor(game.money).toLocaleString();
-            dom.total.innerText = Math.floor(game.totalMoney).toLocaleString();
-            dom.rank.innerText = game.rank;
-            dom.thruSucc.innerText = game.thruSucc;
-            dom.thruFail.innerText = game.thruFail;
-            renderShop();
-        }
+        // リタイア処理
+        dom.retire.onclick = () => {
+            if(confirm("すべてを失い、最初からやり直しますか？")){
+                game = { money: 0, totalMoney: 0, currentReward: 1.0, rank: 0, risk: 0, rewardIncRate: 0.01, riskIncRate: 0.05, isNextDeath: false, thruSucc: 0, thruFail: 0, currentTab: 0, shopCounts: { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) } };
+                saveGame();
+                updateUI();
+            }
+        };
 
         window.switchTab = (idx) => { game.currentTab = idx; document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === idx)); renderShop(); };
-
         dom.rewardBtn.onclick = () => { game.money += game.currentReward; game.totalMoney += game.currentReward; saveGame(); updateUI(); };
         document.getElementById('through-btn').onclick = () => { game.thruSucc++; saveGame(); updateUI(); };
 
