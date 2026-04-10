@@ -33,8 +33,6 @@
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(17, 17, 17, 0.95); border: 2px solid #f0f; padding: 25px; z-index: 1000; width: 320px; box-shadow: 0 0 30px rgba(128,0,128,0.5); }
         .reason-item { display: block; margin: 12px 0; cursor: pointer; font-size: 1.1rem; color: #ccc; }
         .modal-btn { width: 100%; padding: 12px; color: white; margin-top: 10px; font-size: 1.2rem; }
-        
-        /* 上納金モーダル専用 */
         #tax-modal { border-color: #f00; box-shadow: 0 0 50px rgba(255,0,0,0.7); }
     </style>
 </head>
@@ -106,7 +104,6 @@
                 <p>報酬: <span id="money-disp">0</span></p>
                 <p>累計: <span id="total-money-disp">0</span></p>
                 <p>階層: <span id="rank-disp">0</span></p>
-                <p>試行数(10回で徴収): <span id="click-count-disp" style="color:#f00;">0</span>/10</p>
                 <p>回避(成/失): <span id="thru-succ-disp">0</span> / <span id="thru-fail-disp">0</span></p>
             </div>
             <div class="area-bottom">
@@ -117,17 +114,16 @@
     </div>
 
     <script>
-        const STORAGE_KEY = 'vicious_spiral_save';
-        const LOG_KEY = 'vicious_spiral_logs';
+        const STORAGE_KEY = 'spiral_exploitation_v5_strict';
+        const LOG_KEY = 'spiral_exploitation_logs_v5';
 
         let game = {
             money: 0, totalMoney: 0, currentReward: 1.0, 
-            rank: 0, risk: 0, rewardIncRate: 0.01, riskIncRate: 0.05,
+            rank: 0, risk: 0, rewardIncRate: 0.01,
             isNextDeath: false, thruSucc: 0, thruFail: 0,
             currentTab: 0,
             pulseRadius: 100, pulseTarget: 200, pulseSpeed: 1, pulseDir: 1,
             shopCounts: { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) },
-            clickCount: 0,
             periodGain: 0,
             isTaxTime: false,
             bgRed: 0,
@@ -138,7 +134,6 @@
             money: document.getElementById('money-disp'),
             totalMoney: document.getElementById('total-money-disp'),
             rank: document.getElementById('rank-disp'),
-            clickCount: document.getElementById('click-count-disp'),
             thruSucc: document.getElementById('thru-succ-disp'),
             thruFail: document.getElementById('thru-fail-disp'),
             rewardBtn: document.getElementById('reward-btn'),
@@ -153,8 +148,7 @@
             retireTrigger: document.getElementById('retire-trigger'),
             confirmRetire: document.getElementById('confirm-retire'),
             cancelRetire: document.getElementById('cancel-retire'),
-            tabs: document.querySelectorAll('.tab-btn'),
-            shareBtn: document.getElementById('share-btn')
+            tabs: document.querySelectorAll('.tab-btn')
         };
 
         function saveGame() { localStorage.setItem(STORAGE_KEY, JSON.stringify(game)); }
@@ -170,11 +164,10 @@
 
         function initGame(resetTotal = false) {
             if (resetTotal) { game.rank = 0; game.totalMoney = 0; }
-            game.rewardIncRate = 0.01 + (game.rank * 0.005);
-            game.riskIncRate = 0.05 + (game.rank * 0.02);
+            game.rewardIncRate = 0.01;
             game.currentReward = 1.0; game.money = 0; game.risk = 0;
             game.isNextDeath = false; game.thruSucc = 0; game.thruFail = 0;
-            game.clickCount = 0; game.periodGain = 0; game.isTaxTime = false;
+            game.periodGain = 0; game.isTaxTime = false;
             game.shopCounts = { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) };
             saveGame(); updateUI();
         }
@@ -189,33 +182,44 @@
             if (game.isTaxTime) return;
             if (game.isNextDeath) { processRetire("【不可視のリスク接触による強制破綻】", true); return; }
             
-            let gain = (Math.random() * 100 < game.risk) ? (game.isNextDeath = true, game.currentReward * 0.5) : game.currentReward;
+            const roll = Math.random() * 100;
+            
+            // リスク判定（徴収または破綻の予兆）
+            if (roll < game.risk) {
+                if (game.periodGain > 0 && !game.isNextDeath) {
+                    showTaxModal();
+                    return; 
+                } else {
+                    game.isNextDeath = true;
+                }
+            }
+            
+            let gain = game.isNextDeath ? game.currentReward * 0.5 : game.currentReward;
             
             game.money += gain;
             game.totalMoney += gain;
             game.periodGain += gain; 
             game.currentReward += game.rewardIncRate;
-            game.risk = Math.min(99.9, game.risk + game.riskIncRate);
-            game.clickCount++;
-
-            if (game.clickCount >= 10) { showTaxModal(); }
-
+            
+            // 内部リスク増加: 0.01 * (n + 1)% ずつ加算
+            const riskInc = 0.01 * (game.rank + 1);
+            game.risk = Math.min(99.9, game.risk + riskInc);
+            
             saveGame(); updateUI();
         };
 
         function showTaxModal() {
             game.isTaxTime = true;
-            // 30%を計算し切り上げ
-            const tax = Math.ceil(game.periodGain * 0.3);
+            // 上納額 = 期間利益 * (リスク/100) の小数切り上げ
+            const tax = Math.ceil(game.periodGain * (game.risk / 100));
             dom.taxAmountDisp.innerText = tax.toLocaleString();
             dom.taxModal.style.display = 'block';
         }
 
         dom.payTaxBtn.onclick = () => {
-            const tax = Math.ceil(game.periodGain * 0.3);
+            const tax = Math.ceil(game.periodGain * (game.risk / 100));
             if (game.money >= tax) {
                 game.money -= tax;
-                game.clickCount = 0;
                 game.periodGain = 0;
                 game.isTaxTime = false;
                 dom.taxModal.style.display = 'none';
@@ -279,17 +283,17 @@
             }
             else if (game.currentTab === 3) {
                 for(let i=0; i<10; i++){
-                    let rv = (i+1)*0.002, kv = (i+1)*0.05;
-                    createItem(3, i, `報酬増率:+${rv.toFixed(4)}/リスク増率:+${kv.toFixed(3)}`, 1000 * (i+1) * r, () => {
-                        game.rewardIncRate += rv; game.riskIncRate += kv;
+                    let rv = (i+1)*0.002;
+                    createItem(3, i, `報酬増率:+${rv.toFixed(4)}`, 1000 * (i+1) * r, () => {
+                        game.rewardIncRate += rv;
                     });
                 }
             }
             else if (game.currentTab === 4) {
                 for(let i=0; i<10; i++){
-                    let rv = (i+1)*0.01, kv = (i+1)*0.001;
-                    createItem(4, i, `報酬増率:-${rv.toFixed(3)}/リスク増率:-${kv.toFixed(4)}`, 2000 * (i+1) * r, () => {
-                        game.rewardIncRate = Math.max(0, game.rewardIncRate - rv); game.riskIncRate = Math.max(0.01, game.riskIncRate - kv);
+                    let rv = (i+1)*0.01;
+                    createItem(4, i, `報酬増率:-${rv.toFixed(3)}`, 2000 * (i+1) * r, () => {
+                        game.rewardIncRate = Math.max(0, game.rewardIncRate - rv);
                     });
                 }
             }
@@ -299,19 +303,17 @@
             dom.money.innerText = Math.floor(game.money).toLocaleString();
             dom.totalMoney.innerText = Math.floor(game.totalMoney).toLocaleString();
             dom.rank.innerText = game.rank;
-            dom.clickCount.innerText = game.clickCount;
             dom.thruSucc.innerText = game.thruSucc;
             dom.thruFail.innerText = game.thruFail;
             renderShop();
-            dom.rewardBtn.style.backgroundColor = game.isNextDeath ? `rgb(${255 * (game.risk / 100)}, ${255 * (game.risk / 100)}, ${255 * (game.risk / 100)})` : "rgb(255, 255, 255)";
+            dom.rewardBtn.style.backgroundColor = game.isNextDeath ? `rgb(100, 100, 100)` : "rgb(255, 255, 255)";
         }
 
         function processRebirth() {
             game.risk = 0; game.isNextDeath = false;
             game.shopCounts = { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) };
-            game.rewardIncRate = 0.01 + (game.rank * 0.005);
-            game.riskIncRate = 0.05 + (game.rank * 0.02);
-            game.currentReward = 1.0; game.clickCount = 0; game.periodGain = 0;
+            game.rewardIncRate = 0.01;
+            game.currentReward = 1.0; game.periodGain = 0;
             saveGame(); updateUI();
         }
 
@@ -321,8 +323,6 @@
             li.innerHTML = `<span>${txt}</span><br>到達階層: ${game.rank}<br>累計: ${Math.floor(game.totalMoney).toLocaleString()}<br>回避成功: ${game.thruSucc} | 失敗: ${game.thruFail}`;
             dom.logs.prepend(li);
             saveLogs(); initGame(resetTotal);
-            game.isTaxTime = false;
-            document.body.style.backgroundColor = "black";
         }
 
         dom.retireTrigger.onclick = () => { if(!game.isTaxTime) dom.modal.style.display = 'block'; };
