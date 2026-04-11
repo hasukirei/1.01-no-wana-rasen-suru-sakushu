@@ -17,15 +17,21 @@
         .shop-tabs { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-start; }
         .tab-btn { background: rgba(51, 51, 51, 0.8); color: #ccc; font-size: 0.6rem; padding: 4px 5px; border-radius: 2px; border: 1px solid #555; flex: 1 1 auto; }
         .tab-btn.active { background: #800080; color: white; border-color: #f0f; }
-        #retire-trigger { width: 100%; height: 60%; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.8rem; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        #retire-trigger { width: 100%; height: 50%; background-color: rgba(102, 34, 34, 0.9); color: white; font-size: 1.8rem; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
         #share-btn { width: 100%; margin-top: 10px; background: #000; color: #ff00ff; border: 1px dashed #f0f; padding: 8px; border-radius: 4px; font-size: 0.65rem; opacity: 0.8; }
         .shop-item { background: rgba(26, 26, 26, 0.9); margin-bottom: 5px; padding: 8px; border: 1px solid #444; cursor: pointer; font-size: 0.75rem; color: #ddd; display: flex; justify-content: space-between; align-items: center; }
         .shop-item:hover { background: rgba(50, 50, 50, 0.9); color: white; }
         .item-count { color: #f0f; font-weight: bold; margin-left: 10px; }
-        .main-btn-wrapper { display: flex; justify-content: space-between; align-items: center; height: 100%; padding: 0 5%; }
+        
+        .main-btn-wrapper { display: flex; justify-content: space-between; align-items: center; height: 100%; padding: 0 5%; position: relative; box-sizing: border-box; }
         .main-btn { width: 48%; height: 60%; border-radius: 10px; border: 2px solid #555; position: relative; z-index: 20; box-shadow: 0 0 15px rgba(0,0,0,0.8); }
         #through-btn { background-color: #fff; color: black; font-size: 1.5rem; }
         #reward-btn { color: transparent; border: none; } 
+        
+        .sub-action-btn { position: absolute; width: calc((100% - 10%) * 0.48); height: 40px; border-radius: 5px; z-index: 30; font-size: 0.75rem; box-sizing: border-box; transition: opacity 0.2s; cursor: pointer; }
+        #escape-btn { bottom: calc(20% + 60% + 5px); left: 5%; background: #404; color: #f0f; border: 1px solid #f0f; }
+        #prevent-flee-btn { bottom: calc(20% + 60% + 5px); right: 5%; background: #060; color: #0f0; border: 1px solid #0f0; display: none; }
+        
         .status-text { font-size: 0.95rem; line-height: 1.6; color: #eee; }
         #log-list { list-style: none; padding: 0; margin: 0; font-size: 0.75rem; }
         .log-entry { border-bottom: 1px dashed #333; padding: 10px 0; color: #bbb; line-height: 1.4; }
@@ -33,7 +39,13 @@
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(17, 17, 17, 0.95); border: 2px solid #f0f; padding: 25px; z-index: 1000; width: 320px; box-shadow: 0 0 30px rgba(128,0,128,0.5); }
         .reason-item { display: block; margin: 12px 0; cursor: pointer; font-size: 1.1rem; color: #ccc; }
         .modal-btn { width: 100%; padding: 12px; color: white; margin-top: 10px; font-size: 1.2rem; }
-        #tax-modal { border-color: #f00; box-shadow: 0 0 50px rgba(255,0,0,0.7); }
+
+        #tax-container { display: none; flex-direction: column; gap: 8px; }
+        .tax-btn { padding: 10px; color: white; font-weight: bold; border-radius: 4px; font-size: 0.9rem; }
+
+        #exploitation-ui { margin-top: 15px; padding: 10px; background: rgba(255,0,0,0.1); border: 1px solid #500; display: none; }
+        .slider-label { font-size: 0.7rem; display: block; margin-bottom: 5px; color: #f66; }
+        #exploit-slider { width: 100%; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -42,7 +54,6 @@
 
     <div id="retire-modal" class="modal">
         <h3 style="color:#f0f; border:none; text-align:center;">リタイア確認</h3>
-        <p style="font-size:0.8rem; color:#aaa; text-align:center;">すべてを失って逃げますか？</p>
         <div id="reason-list">
             <label class="reason-item"><input type="checkbox" name="reason" value="身の危険"> 身の危険を感じた</label>
             <label class="reason-item"><input type="checkbox" name="reason" value="良心"> 良心の呵責</label>
@@ -51,16 +62,6 @@
         </div>
         <button id="confirm-retire" class="modal-btn" style="background:#900;">確定して終了</button>
         <button id="cancel-retire" class="modal-btn" style="background:#444;">戻る</button>
-    </div>
-
-    <div id="tax-modal" class="modal">
-        <h3 style="color:#f00; border:none; text-align:center;">徴収の刻</h3>
-        <p style="font-size:0.9rem; color:#fff; text-align:center;">
-            上納金<br>
-            上納額: <span id="tax-amount-disp" style="color:#f00; font-weight:bold; font-size:1.2rem;">0</span>
-        </p>
-        <button id="pay-tax-btn" class="modal-btn" style="background:#600;">支払って継続</button>
-        <button id="tax-retire-btn" class="modal-btn" style="background:#222;">上納金が嫌なのでリタイア</button>
     </div>
 
     <div class="container">
@@ -81,19 +82,33 @@
                     </div>
                 </h3>
                 <div id="shop-container"></div>
+                <div id="exploitation-ui">
+                    <span class="slider-label">搾取率: <span id="exploit-val">0</span>%</span>
+                    <input type="range" id="exploit-slider" min="0" max="100" value="0">
+                </div>
             </div>
         </div>
         <div class="col">
             <div class="area-top">
-                <h3>相談窓口（現実）</h3>
-                <p style="font-size: 0.8rem; line-height: 1.6; color:#bbb;">
-                    ・警察庁 匿名通報: 0120-924-839<br>
-                    ・貸金業相談: 0570-051-051<br>
-                    ・法テラス: 0570-078374
-                </p>
+                <div id="consult-ui">
+                    <h3>相談窓口（現実）</h3>
+                    <p style="font-size: 0.8rem; line-height: 1.6; color:#bbb;">
+                        ・警察庁 匿名通報: 0120-924-839<br>
+                        ・貸金業相談: 0570-051-051<br>
+                        ・法テラス: 0570-078374
+                    </p>
+                </div>
+                <div id="tax-container">
+                    <h3 style="color:#f00; border-color:#f00;">徴収の刻（上納）</h3>
+                    <p style="font-size:0.9rem; margin:0;">上納額: <span id="tax-amount-disp" style="color:#f00; font-weight:bold;">0</span></p>
+                    <button id="pay-tax-btn" class="tax-btn" style="background:#600;">支払って継続</button>
+                    <button id="tax-retire-btn" class="tax-btn" style="background:#222;">ここでリタイア</button>
+                </div>
             </div>
             <div class="area-bottom">
                 <div class="main-btn-wrapper">
+                    <button id="escape-btn" class="sub-action-btn">搾取から逃れる</button>
+                    <button id="prevent-flee-btn" class="sub-action-btn">逃走を阻止する</button>
                     <button id="through-btn" class="main-btn">スルー</button>
                     <button id="reward-btn" class="main-btn"></button>
                 </div>
@@ -114,21 +129,21 @@
     </div>
 
     <script>
-        const STORAGE_KEY = 'spiral_exploitation_v5_strict';
-        const LOG_KEY = 'spiral_exploitation_logs_v5';
+        const STORAGE_KEY = 'spiral_exploitation_v_final';
+        const LOG_KEY = 'spiral_exploitation_logs_final';
 
-        let game = {
+        const initialState = {
             money: 0, totalMoney: 0, currentReward: 1.0, 
-            rank: 0, risk: 0, rewardIncRate: 0.01,
+            rank: 0, risk: 0, rewardIncRate: 0.01, riskIncRate: 0,
             isNextDeath: false, thruSucc: 0, thruFail: 0,
             currentTab: 0,
-            pulseRadius: 100, pulseTarget: 200, pulseSpeed: 1, pulseDir: 1,
             shopCounts: { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) },
-            periodGain: 0,
-            isTaxTime: false,
-            bgRed: 0,
-            bgSpeed: 1
+            periodGain: 0, isTaxTime: false, bgRed: 0,
+            escapeCount: 0, isEscaping: false, isExploited: false,
+            totalTax: 0, exploitRate: 0, isTargetCaught: false, targetFleeing: false
         };
+
+        let game = JSON.parse(JSON.stringify(initialState));
 
         const dom = {
             money: document.getElementById('money-disp'),
@@ -138,17 +153,23 @@
             thruFail: document.getElementById('thru-fail-disp'),
             rewardBtn: document.getElementById('reward-btn'),
             throughBtn: document.getElementById('through-btn'),
+            escapeBtn: document.getElementById('escape-btn'),
+            preventFleeBtn: document.getElementById('prevent-flee-btn'),
             shop: document.getElementById('shop-container'),
             logs: document.getElementById('log-list'),
             modal: document.getElementById('retire-modal'),
-            taxModal: document.getElementById('tax-modal'),
+            consultUi: document.getElementById('consult-ui'),
+            taxContainer: document.getElementById('tax-container'),
             taxAmountDisp: document.getElementById('tax-amount-disp'),
             payTaxBtn: document.getElementById('pay-tax-btn'),
             taxRetireBtn: document.getElementById('tax-retire-btn'),
             retireTrigger: document.getElementById('retire-trigger'),
             confirmRetire: document.getElementById('confirm-retire'),
             cancelRetire: document.getElementById('cancel-retire'),
-            tabs: document.querySelectorAll('.tab-btn')
+            tabs: document.querySelectorAll('.tab-btn'),
+            exploitUi: document.getElementById('exploitation-ui'),
+            exploitSlider: document.getElementById('exploit-slider'),
+            exploitVal: document.getElementById('exploit-val')
         };
 
         function saveGame() { localStorage.setItem(STORAGE_KEY, JSON.stringify(game)); }
@@ -159,17 +180,19 @@
             if (saved) Object.assign(game, JSON.parse(saved));
             const savedLogs = localStorage.getItem(LOG_KEY);
             if (savedLogs) dom.logs.innerHTML = savedLogs;
+            dom.exploitSlider.value = game.exploitRate || 0;
+            dom.exploitVal.innerText = game.exploitRate || 0;
             updateUI();
         }
 
-        function initGame(resetTotal = false) {
-            if (resetTotal) { game.rank = 0; game.totalMoney = 0; }
-            game.rewardIncRate = 0.01;
-            game.currentReward = 1.0; game.money = 0; game.risk = 0;
-            game.isNextDeath = false; game.thruSucc = 0; game.thruFail = 0;
-            game.periodGain = 0; game.isTaxTime = false;
-            game.shopCounts = { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) };
-            saveGame(); updateUI();
+        function processDeathOrRetire(msg) {
+            const li = document.createElement('li');
+            li.className = 'log-entry';
+            li.innerHTML = `<span>${msg}</span><br>累計報酬: ${Math.floor(game.totalMoney).toLocaleString()}<br>階層: ${game.rank}`;
+            dom.logs.prepend(li);
+            saveLogs();
+            localStorage.removeItem(STORAGE_KEY);
+            location.reload();
         }
 
         function switchTab(idx) {
@@ -178,62 +201,95 @@
             renderShop();
         }
 
+        dom.exploitSlider.oninput = (e) => {
+            game.exploitRate = parseInt(e.target.value);
+            dom.exploitVal.innerText = game.exploitRate;
+            saveGame();
+        };
+
+        dom.preventFleeBtn.onclick = () => {
+            game.isTargetCaught = true;
+            game.targetFleeing = false;
+            saveGame(); updateUI();
+        };
+
+        dom.escapeBtn.onclick = () => {
+            if (game.isTaxTime) return;
+            if (!game.isEscaping && !game.isExploited) {
+                if (Math.random() * 100 < (100 - game.escapeCount)) {
+                    game.isEscaping = true; 
+                    game.escapeCount++;
+                } else { game.isExploited = true; }
+            }
+            saveGame(); updateUI();
+        };
+
         dom.rewardBtn.onclick = () => {
             if (game.isTaxTime) return;
-            if (game.isNextDeath) { processRetire("【不可視のリスク接触による強制破綻】", true); return; }
+            if (game.isNextDeath) { processDeathOrRetire("【破綻】"); return; }
             
             const roll = Math.random() * 100;
+            const exploit = game.exploitRate;
             
-            // リスク判定（徴収または破綻の予兆）
-            if (roll < game.risk) {
-                if (game.periodGain > 0 && !game.isNextDeath) {
-                    showTaxModal();
-                    return; 
-                } else {
-                    game.isNextDeath = true;
+            if (game.rank >= 5) {
+                if (!game.isTargetCaught && !game.targetFleeing) {
+                    if (roll < (100 - exploit)) game.targetFleeing = true;
+                } 
+                else if (game.targetFleeing) {
+                    game.targetFleeing = false;
+                }
+                else if (game.isTargetCaught) {
+                    if (roll < exploit) { // 搾取率と同じ確率で逃走状態へ
+                        game.isTargetCaught = false;
+                        game.targetFleeing = true;
+                    }
+                }
+
+                const minQuota = (game.rank - 5) * 5; 
+                if (exploit < minQuota && Math.random() < 0.05) {
+                    processDeathOrRetire("【上からの制裁：上納不足】");
+                    return;
                 }
             }
+
+            if (game.isEscaping && roll < (100 - (game.escapeCount - 1))) { game.isEscaping = false; }
+            if (!game.isEscaping && roll < game.risk) {
+                if (game.periodGain > 0) { showTaxUI(); return; }
+                else game.isNextDeath = true;
+            }
+
+            let baseGain = game.isExploited ? 0 : (game.isNextDeath ? game.currentReward * 0.5 : game.currentReward);
+            let exploitGain = game.isTargetCaught ? (baseGain * (exploit / 10)) : 0;
+            let gain = baseGain + exploitGain;
             
-            let gain = game.isNextDeath ? game.currentReward * 0.5 : game.currentReward;
-            
-            game.money += gain;
-            game.totalMoney += gain;
+            game.money += gain; 
+            game.totalMoney += gain; 
             game.periodGain += gain; 
             game.currentReward += game.rewardIncRate;
-            
-            // 内部リスク増加: 0.01 * (n + 1)% ずつ加算
-            const riskInc = 0.01 * (game.rank + 1);
-            game.risk = Math.min(99.9, game.risk + riskInc);
+
+            const riskFactor = 1 + (exploit / 20);
+            game.risk = Math.min(99.9, Math.max(0, game.risk + ((0.01 * (game.rank + 1)) + game.riskIncRate) * riskFactor));
             
             saveGame(); updateUI();
         };
 
-        function showTaxModal() {
+        function showTaxUI() {
             game.isTaxTime = true;
-            // 上納額 = 期間利益 * (リスク/100) の小数切り上げ
             const tax = Math.ceil(game.periodGain * (game.risk / 100));
             dom.taxAmountDisp.innerText = tax.toLocaleString();
-            dom.taxModal.style.display = 'block';
+            updateUI();
         }
 
         dom.payTaxBtn.onclick = () => {
             const tax = Math.ceil(game.periodGain * (game.risk / 100));
             if (game.money >= tax) {
-                game.money -= tax;
-                game.periodGain = 0;
-                game.isTaxTime = false;
-                dom.taxModal.style.display = 'none';
+                game.money -= tax; 
+                game.periodGain = 0; game.isTaxTime = false;
                 saveGame(); updateUI();
-            } else {
-                processRetire("【上納金未払いによる破産宣告】", true);
-                dom.taxModal.style.display = 'none';
-            }
+            } else { processDeathOrRetire("【未払い破綻】"); }
         };
 
-        dom.taxRetireBtn.onclick = () => {
-            processRetire("【自発リタイア】上納金が嫌だ", true);
-            dom.taxModal.style.display = 'none';
-        };
+        dom.taxRetireBtn.onclick = () => { processDeathOrRetire("【徴収時リタイア】"); };
 
         dom.throughBtn.onclick = () => {
             if (game.isTaxTime) return;
@@ -250,51 +306,39 @@
                 const currentCost = Math.floor(baseCost * Math.pow(1.1, count));
                 let div = document.createElement('div');
                 div.className = 'shop-item';
-                div.innerHTML = `<span>${label} (${currentCost.toLocaleString()})</span><span class="item-count">[${count}]</span>`;
+                div.innerHTML = `<span>${label}</span><span class="item-count">[${count}]</span>`;
                 div.onclick = () => { 
                     if (game.money >= currentCost && !game.isTaxTime) { 
-                        game.money -= currentCost; 
-                        game.shopCounts[tabIdx][itemIdx]++;
-                        onClick();
-                        saveGame(); updateUI(); 
+                        game.money -= currentCost; game.shopCounts[tabIdx][itemIdx]++;
+                        onClick(); saveGame(); updateUI(); 
                     } 
                 };
                 dom.shop.appendChild(div);
             };
-
             if (game.currentTab === 0) {
-                createItem(0, 0, "次なる搾取へ", 200000 * Math.pow(2, game.rank), () => { game.rank++; processRebirth(); });
-            } 
+                // 転生コスト = 200,000 * 1.1^(rank)
+                let rebirthCost = Math.floor(200000 * Math.pow(1.1, game.rank));
+                createItem(0, 0, `次なる搾取へ (${rebirthCost.toLocaleString()})`, rebirthCost, () => { game.rank++; processRebirth(); });
+            }
             else if (game.currentTab === 1) {
                 for(let i=0; i<10; i++){
-                    let rv = (i+1)*0.05, kv = (i+1)*2.0;
-                    createItem(1, i, `報酬:+${rv.toFixed(2)}/リスク:+${kv.toFixed(1)}`, 300 * (i+1) * r, () => {
-                        game.currentReward += rv; game.risk = Math.min(99.9, game.risk + kv);
-                    });
+                    let rv = (i+1)*0.05, kv = (i+1)*2.0, cost = 300 * (i+1) * r;
+                    createItem(1, i, `報酬:+${rv.toFixed(2)}/リスク:+${kv.toFixed(1)}`, cost, () => { game.currentReward += rv; game.risk = Math.min(99.9, game.risk + kv); });
                 }
-            } 
-            else if (game.currentTab === 2) {
+            } else if (game.currentTab === 2) {
                 for(let i=0; i<10; i++){
-                    let rv = (i+1)*2.0, kv = (i+1)*0.1;
-                    createItem(2, i, `報酬:-${rv.toFixed(1)}/リスク:-${kv.toFixed(2)}`, 500 * (i+1) * r, () => {
-                        game.currentReward = Math.max(1, game.currentReward - rv); game.risk = Math.max(0, game.risk - kv);
-                    });
+                    let rv = (i+1)*2.0, kv = (i+1)*0.1, cost = 500 * (i+1) * r;
+                    createItem(2, i, `報酬:-${rv.toFixed(1)}/リスク:-${kv.toFixed(2)}`, cost, () => { game.currentReward = Math.max(1, game.currentReward - rv); game.risk = Math.max(0, game.risk - kv); });
                 }
-            }
-            else if (game.currentTab === 3) {
+            } else if (game.currentTab === 3) {
                 for(let i=0; i<10; i++){
-                    let rv = (i+1)*0.002;
-                    createItem(3, i, `報酬増率:+${rv.toFixed(4)}`, 1000 * (i+1) * r, () => {
-                        game.rewardIncRate += rv;
-                    });
+                    let rv = (i+1)*0.002, kv = (i+1)*0.05, cost = 1000 * (i+1) * r;
+                    createItem(3, i, `報酬増率:+${rv.toFixed(4)}/リスク増率:+${kv.toFixed(3)}`, cost, () => { game.rewardIncRate += rv; game.riskIncRate += kv; });
                 }
-            }
-            else if (game.currentTab === 4) {
+            } else if (game.currentTab === 4) {
                 for(let i=0; i<10; i++){
-                    let rv = (i+1)*0.01;
-                    createItem(4, i, `報酬増率:-${rv.toFixed(3)}`, 2000 * (i+1) * r, () => {
-                        game.rewardIncRate = Math.max(0, game.rewardIncRate - rv);
-                    });
+                    let rv = (i+1)*0.01, kv = (i+1)*0.001, cost = 2000 * (i+1) * r;
+                    createItem(4, i, `報酬増率:-${rv.toFixed(3)}/リスク増率:-${kv.toFixed(4)}`, cost, () => { game.rewardIncRate = Math.max(0, game.rewardIncRate - rv); game.riskIncRate -= kv; });
                 }
             }
         }
@@ -303,66 +347,35 @@
             dom.money.innerText = Math.floor(game.money).toLocaleString();
             dom.totalMoney.innerText = Math.floor(game.totalMoney).toLocaleString();
             dom.rank.innerText = game.rank;
-            dom.thruSucc.innerText = game.thruSucc;
-            dom.thruFail.innerText = game.thruFail;
+            dom.thruSucc.innerText = game.thruSucc; dom.thruFail.innerText = game.thruFail;
             renderShop();
-            dom.rewardBtn.style.backgroundColor = game.isNextDeath ? `rgb(100, 100, 100)` : "rgb(255, 255, 255)";
+            dom.rewardBtn.style.backgroundColor = game.isNextDeath ? "#666" : "#fff";
+            dom.exploitUi.style.display = game.rank >= 5 ? 'block' : 'none';
+            dom.preventFleeBtn.style.display = (game.rank >= 5 && game.targetFleeing) ? 'block' : 'none';
+            if (game.isTaxTime) { dom.consultUi.style.display = 'none'; dom.taxContainer.style.display = 'flex'; } 
+            else { dom.consultUi.style.display = 'block'; dom.taxContainer.style.display = 'none'; }
         }
 
-        function processRebirth() {
-            game.risk = 0; game.isNextDeath = false;
-            game.shopCounts = { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) };
-            game.rewardIncRate = 0.01;
-            game.currentReward = 1.0; game.periodGain = 0;
-            saveGame(); updateUI();
-        }
-
-        function processRetire(txt, resetTotal) {
-            const li = document.createElement('li');
-            li.className = 'log-entry';
-            li.innerHTML = `<span>${txt}</span><br>到達階層: ${game.rank}<br>累計: ${Math.floor(game.totalMoney).toLocaleString()}<br>回避成功: ${game.thruSucc} | 失敗: ${game.thruFail}`;
-            dom.logs.prepend(li);
-            saveLogs(); initGame(resetTotal);
+        function processRebirth() { 
+            game.risk = 0; game.isNextDeath = false; game.rewardIncRate = 0.01; game.riskIncRate = 0; 
+            game.currentReward = 1.0; game.isEscaping = false; game.isExploited = false; 
+            game.isTargetCaught = false; game.targetFleeing = false;
+            saveGame(); updateUI(); 
         }
 
         dom.retireTrigger.onclick = () => { if(!game.isTaxTime) dom.modal.style.display = 'block'; };
         dom.cancelRetire.onclick = () => { dom.modal.style.display = 'none'; };
-        dom.confirmRetire.onclick = () => {
-            const sel = Array.from(document.querySelectorAll('input[name="reason"]:checked')).map(e => e.value);
-            processRetire(`【自発リタイア】${sel.join('/') || "無言"}`, true);
-            dom.modal.style.display = 'none';
-        };
+        dom.confirmRetire.onclick = () => { processDeathOrRetire("【自発リタイア】"); };
 
         const canvas = document.getElementById('visibility-canvas'), ctx = canvas.getContext('2d');
         function animatePulse() {
             canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-            const cx = canvas.width / 2, cy = canvas.height / 2;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            if (game.isTaxTime) {
-                if (Math.random() < 0.1) game.bgSpeed = Math.random() * 15 + 1;
-                game.bgRed += game.bgSpeed;
-                const rVal = Math.floor((Math.sin(game.bgRed * 0.1) + 1) * 127);
-                document.body.style.backgroundColor = `rgb(${rVal}, 0, 0)`;
-            } else {
-                document.body.style.backgroundColor = "black";
-            }
-
-            game.pulseRadius += game.pulseSpeed * game.pulseDir;
-            if (game.pulseDir > 0 && game.pulseRadius >= game.pulseTarget) {
-                game.pulseDir = -1; game.pulseSpeed = Math.random() * 3 + 1;
-            } else if (game.pulseDir < 0 && game.pulseRadius <= 50) {
-                game.pulseDir = 1; game.pulseTarget = Math.random() * (cy * 1.2 - 200) + 200; game.pulseSpeed = Math.random() * 5 + 2;
-            }
-
-            const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, game.pulseRadius);
-            grad.addColorStop(0, 'rgba(128, 0, 128, 0.9)');
-            grad.addColorStop(0.7, 'rgba(60, 0, 60, 0.5)');
-            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(cx, cy, game.pulseRadius, 0, Math.PI * 2); ctx.fill();
+            if (game.isTaxTime) { game.bgRed += 2; document.body.style.backgroundColor = `rgb(${Math.floor((Math.sin(game.bgRed * 0.1) + 1) * 127)}, 0, 0)`; } 
+            else if (game.isTargetCaught) { document.body.style.backgroundColor = "#020"; }
+            else document.body.style.backgroundColor = "black";
+            ctx.clearRect(0,0,canvas.width,canvas.height);
             requestAnimationFrame(animatePulse);
         }
-
         loadGame(); animatePulse();
     </script>
 </body>
