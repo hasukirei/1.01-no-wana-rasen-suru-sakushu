@@ -239,7 +239,7 @@
                     game.targetFleeing = false;
                 }
                 else if (game.isTargetCaught) {
-                    if (roll < exploit) { // 搾取率と同じ確率で逃走状態へ
+                    if (roll < exploit) { 
                         game.isTargetCaught = false;
                         game.targetFleeing = true;
                     }
@@ -301,24 +301,37 @@
         function renderShop() {
             dom.shop.innerHTML = "";
             const r = game.rank + 1;
+            
             let createItem = (tabIdx, itemIdx, label, baseCost, onClick) => {
                 const count = game.shopCounts[tabIdx][itemIdx];
                 const currentCost = Math.floor(baseCost * Math.pow(1.1, count));
                 let div = document.createElement('div');
                 div.className = 'shop-item';
-                div.innerHTML = `<span>${label}</span><span class="item-count">[${count}]</span>`;
+                
+                // 横並び表示：[名前] ([コスト]) [購入数]
+                div.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <span>${label}</span>
+                        <span style="font-size:0.6rem; color:#aaa;">(${currentCost.toLocaleString()})</span>
+                    </div>
+                    <span class="item-count">[${count}]</span>
+                `;
+                
                 div.onclick = () => { 
                     if (game.money >= currentCost && !game.isTaxTime) { 
-                        game.money -= currentCost; game.shopCounts[tabIdx][itemIdx]++;
-                        onClick(); saveGame(); updateUI(); 
+                        game.money -= currentCost; 
+                        game.shopCounts[tabIdx][itemIdx]++;
+                        onClick(); 
+                        saveGame(); 
+                        updateUI(); 
                     } 
                 };
                 dom.shop.appendChild(div);
             };
+
             if (game.currentTab === 0) {
-                // 転生コスト = 200,000 * 1.1^(rank)
                 let rebirthCost = Math.floor(200000 * Math.pow(1.1, game.rank));
-                createItem(0, 0, `次なる搾取へ (${rebirthCost.toLocaleString()})`, rebirthCost, () => { game.rank++; processRebirth(); });
+                createItem(0, 0, `次なる搾取へ`, rebirthCost, () => { game.rank++; processRebirth(); });
             }
             else if (game.currentTab === 1) {
                 for(let i=0; i<10; i++){
