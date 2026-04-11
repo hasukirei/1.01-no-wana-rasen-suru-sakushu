@@ -5,8 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>1.01の罠 — 螺旋する搾取 —</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: black; color: white; font-family: sans-serif; transition: background-color 0.1s; }
-        #visibility-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: black; color: white; font-family: sans-serif; }
+        #visibility-canvas { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: 1; 
+            pointer-events: none;
+            display: block;
+        }
         .container { display: flex; width: 100vw; height: 100vh; position: relative; z-index: 10; background: transparent; }
         .col { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #333; background: transparent; text-shadow: 0 0 5px rgba(0,0,0,1); }
         .col:last-child { border-right: none; }
@@ -25,7 +34,7 @@
         .main-btn-wrapper { display: flex; justify-content: space-between; align-items: center; height: 100%; padding: 0 5%; position: relative; box-sizing: border-box; }
         .main-btn { width: 48%; height: 60%; border-radius: 10px; border: 2px solid #555; position: relative; z-index: 20; box-shadow: 0 0 15px rgba(0,0,0,0.8); }
         #through-btn { background-color: #fff; color: black; font-size: 1.5rem; }
-        #reward-btn { color: transparent; border: none; } 
+        #reward-btn { border: none; font-size: 1.5rem; transition: background-color 0.1s; } 
         .sub-action-btn { position: absolute; width: calc((100% - 10%) * 0.48); height: 40px; border-radius: 5px; z-index: 30; font-size: 0.75rem; box-sizing: border-box; transition: opacity 0.2s; cursor: pointer; }
         #escape-btn { bottom: calc(20% + 60% + 5px); left: 5%; background: #404; color: #f0f; border: 1px solid #f0f; }
         #prevent-flee-btn { bottom: calc(20% + 60% + 5px); right: 5%; background: #060; color: #0f0; border: 1px solid #0f0; display: none; }
@@ -34,7 +43,7 @@
         .stats-line b { color: #fff; margin-left: 4px; }
         #log-list { list-style: none; padding: 0; margin: 0; font-size: 0.75rem; }
         .log-entry { border-bottom: 1px dashed #333; padding: 10px 0; color: #bbb; line-height: 1.4; }
-        .log-entry span { color: #f0f; font-weight: bold; }
+        .log-entry span.reason { color: #f0f; font-weight: bold; }
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(17, 17, 17, 0.95); border: 2px solid #f0f; padding: 25px; z-index: 1000; width: 320px; box-shadow: 0 0 30px rgba(128,0,128,0.5); }
         .reason-item { display: block; margin: 12px 0; cursor: pointer; font-size: 1.1rem; color: #ccc; }
         .modal-btn { width: 100%; padding: 12px; color: white; margin-top: 10px; font-size: 1.2rem; }
@@ -112,13 +121,13 @@
             </div>
         </div>
         <div class="col">
-            <div class="area-top status-text">
+            <div class="area-top status-text" id="status-panel">
                 <p>報酬: <span id="money-disp">0</span></p>
                 <p>累計: <span id="total-money-disp">0</span></p>
                 <p>階層: <span id="rank-disp">0</span></p>
                 <p>回避(成/失): <span id="thru-succ-disp">0</span> / <span id="thru-fail-disp">0</span></p>
                 
-                <div class="stats-line" style="color:#f66;">
+                <div class="stats-line" id="be-stats-line" style="color:#f66;">
                     被搾取: <b>計</b><span id="be-total">0</span> <b>最少</b><span id="be-min">0</span> <b>最大</b><span id="be-max">0</span> <b>平均</b><span id="be-avg">0</span>
                 </div>
                 <div id="exploit-stats-container" class="stats-line" style="color:#6f6; display:none;">
@@ -133,12 +142,12 @@
     </div>
 
     <script>
-        const STORAGE_KEY = 'spiral_exploitation_v_final_v8';
-        const LOG_KEY = 'spiral_exploitation_logs_v8';
+        const STORAGE_KEY = 'spiral_exploitation_v_final_v11';
+        const LOG_KEY = 'spiral_exploitation_logs_v11';
 
         const initialState = {
             money: 0, totalMoney: 0, currentReward: 1.0, 
-            rank: 0, risk: 0, rewardIncRate: 0.01, riskIncRate: 0,
+            rank: 0, risk: 0, rewardIncRate: 0.01, riskIncRate: 0.01,
             isNextDeath: false, thruSucc: 0, thruFail: 0,
             currentTab: 0,
             shopCounts: { 0: [0], 1: Array(10).fill(0), 2: Array(10).fill(0), 3: Array(10).fill(0), 4: Array(10).fill(0) },
@@ -178,7 +187,8 @@
             exploitVal: document.getElementById('exploit-val'),
             beTotal: document.getElementById('be-total'), beMin: document.getElementById('be-min'), beMax: document.getElementById('be-max'), beAvg: document.getElementById('be-avg'),
             doTotal: document.getElementById('do-total'), doMin: document.getElementById('do-min'), doMax: document.getElementById('do-max'), doAvg: document.getElementById('do-avg'),
-            exploitStatsContainer: document.getElementById('exploit-stats-container')
+            exploitStatsContainer: document.getElementById('exploit-stats-container'),
+            statusPanel: document.getElementById('status-panel')
         };
 
         function saveGame() { localStorage.setItem(STORAGE_KEY, JSON.stringify(game)); }
@@ -194,11 +204,11 @@
             updateUI();
         }
 
-        function getActiveStatList(mainList, currentSum) {
-            // リストに現在の進行中（一人分）を加えた一時的な配列を返す
-            let temp = [...mainList];
-            if (currentSum > 0) temp.push(currentSum);
-            return temp;
+        function getStatSnapshot() {
+            const clone = dom.statusPanel.cloneNode(true);
+            const moneyP = clone.querySelector('p');
+            if (moneyP) moneyP.remove();
+            return clone.innerHTML;
         }
 
         function updateUI() {
@@ -206,22 +216,28 @@
             dom.totalMoney.innerText = Math.floor(game.totalMoney).toLocaleString();
             dom.rank.innerText = game.rank;
             dom.thruSucc.innerText = game.thruSucc; dom.thruFail.innerText = game.thruFail;
-            
-            // 統計表示 (進行中の「一人」も含めて計算)
-            const activeBe = getActiveStatList(game.beExploitedList, game.currentBeExploitedSum);
-            const activeDo = getActiveStatList(game.doExploitedList, game.currentDoExploitedSum);
-            
+            const activeBe = [...game.beExploitedList]; if (game.currentBeExploitedSum > 0) activeBe.push(game.currentBeExploitedSum);
+            const activeDo = [...game.doExploitedList]; if (game.currentDoExploitedSum > 0) activeDo.push(game.currentDoExploitedSum);
             displayStats(activeBe, dom.beTotal, dom.beMin, dom.beMax, dom.beAvg);
             displayStats(activeDo, dom.doTotal, dom.doMin, dom.doMax, dom.doAvg);
-            
             dom.exploitStatsContainer.style.display = game.rank >= 5 ? 'block' : 'none';
             dom.exploitUi.style.display = game.rank >= 5 ? 'block' : 'none';
             dom.preventFleeBtn.style.display = (game.rank >= 5 && game.targetFleeing) ? 'block' : 'none';
-            
             if (game.isTaxTime) { dom.consultUi.style.display = 'none'; dom.taxContainer.style.display = 'flex'; } 
             else { dom.consultUi.style.display = 'block'; dom.taxContainer.style.display = 'none'; }
             
-            dom.rewardBtn.style.backgroundColor = game.isNextDeath ? "#666" : "#fff";
+            const opacity = Math.max(0, 1 - (game.risk / 100));
+            
+            if (game.isNextDeath) {
+                const rgb = Math.floor((game.risk / 100) * 255);
+                dom.rewardBtn.innerText = "";
+                dom.rewardBtn.style.backgroundColor = `rgb(${rgb}, 0, 0)`;
+                dom.rewardBtn.style.opacity = 1;
+            } else {
+                dom.rewardBtn.innerText = "";
+                dom.rewardBtn.style.backgroundColor = `rgba(255, 255, 255, ${opacity})`;
+                dom.rewardBtn.style.opacity = opacity;
+            }
             renderShop();
         }
 
@@ -235,15 +251,17 @@
         }
 
         function processDeathOrRetire(msg) {
-            // リタイア時に現在進行中の「一人」を確定
+            // 指示通り、Snapshot を撮るまでは push しない（二重計上防止）
+            const snapshot = getStatSnapshot();
+
+            // 記録用データの確定
             if (game.currentBeExploitedSum > 0) game.beExploitedList.push(game.currentBeExploitedSum);
             if (game.currentDoExploitedSum > 0) game.doExploitedList.push(game.currentDoExploitedSum);
             
-            let beText = `計:${Math.floor(game.beExploitedList.reduce((a,b)=>a+b,0)).toLocaleString()} 最少:${Math.floor(Math.min(...game.beExploitedList)||0).toLocaleString()} 最大:${Math.floor(Math.max(...game.beExploitedList)||0).toLocaleString()} 平均:${Math.floor(game.beExploitedList.reduce((a,b)=>a+b,0)/(game.beExploitedList.length||1)).toLocaleString()}`;
-            
             const li = document.createElement('li');
             li.className = 'log-entry';
-            li.innerHTML = `<span>${msg}</span><br>被搾取 [ ${beText} ]<br>累計報酬: ${Math.floor(game.totalMoney).toLocaleString()} / 階層: ${game.rank}`;
+            li.innerHTML = `<span class="reason">${msg}</span><div class="status-text" style="font-size:0.7rem; opacity:0.8;">${snapshot}</div>`;
+            
             dom.logs.prepend(li);
             saveLogs();
             localStorage.removeItem(STORAGE_KEY);
@@ -253,18 +271,10 @@
         dom.escapeBtn.onclick = () => {
             if (game.isTaxTime) return;
             if (!game.isEscaping && !game.isExploited) {
-                if (Math.random() * 100 < (100 - game.escapeCount)) {
-                    game.isEscaping = true; game.escapeCount++;
-                } else { 
-                    game.isExploited = true; 
-                    // ここでは加算し続けるため、currentBeExploitedSumをリセットしない
-                }
+                if (Math.random() * 100 < (100 - game.escapeCount)) { game.isEscaping = true; game.escapeCount++; } 
+                else { game.isExploited = true; }
             } else if (game.isEscaping) {
-                // 「脱出成功」した瞬間、これまでの累計を「一人」として確定
-                if (game.currentBeExploitedSum > 0) {
-                    game.beExploitedList.push(game.currentBeExploitedSum);
-                    game.currentBeExploitedSum = 0;
-                }
+                if (game.currentBeExploitedSum > 0) { game.beExploitedList.push(game.currentBeExploitedSum); game.currentBeExploitedSum = 0; }
                 game.isEscaping = false; game.isExploited = false;
             }
             saveGame(); updateUI();
@@ -273,75 +283,71 @@
         dom.rewardBtn.onclick = () => {
             if (game.isTaxTime) return;
             if (game.isNextDeath) { processDeathOrRetire("【破綻】"); return; }
-            
             const roll = Math.random() * 100;
             const exploit = game.exploitRate;
 
-            // 加搾取ロジック
             if (game.rank >= 5) {
-                if (!game.isTargetCaught && !game.targetFleeing) {
-                    if (roll < (100 - exploit)) game.targetFleeing = true;
-                } else if (game.isTargetCaught) {
+                if (!game.isTargetCaught && !game.targetFleeing) { if (roll < (100 - exploit)) game.targetFleeing = true; } 
+                else if (game.isTargetCaught) {
                     if (roll < exploit) { 
                         game.isTargetCaught = false; game.targetFleeing = true;
-                        if (game.currentDoExploitedSum > 0) {
-                            game.doExploitedList.push(game.currentDoExploitedSum);
-                            game.currentDoExploitedSum = 0;
-                        }
+                        if (game.currentDoExploitedSum > 0) { game.doExploitedList.push(game.currentDoExploitedSum); game.currentDoExploitedSum = 0; }
                     }
                 }
             }
-
-            // 脱出判定
             if (game.isEscaping && roll < (100 - (game.escapeCount - 1))) { 
-                if (game.currentBeExploitedSum > 0) {
-                    game.beExploitedList.push(game.currentBeExploitedSum);
-                    game.currentBeExploitedSum = 0;
-                }
+                if (game.currentBeExploitedSum > 0) { game.beExploitedList.push(game.currentBeExploitedSum); game.currentBeExploitedSum = 0; }
                 game.isEscaping = false; game.isExploited = false;
             }
-
             if (!game.isEscaping && !game.isExploited && roll < game.risk) {
                 if (game.periodGain > 0) { showTaxUI(); return; }
                 else game.isNextDeath = true;
             }
 
-            let baseGain = (game.isExploited || game.isEscaping) ? 0 : (game.isNextDeath ? game.currentReward * 0.5 : game.currentReward);
-            
-            // 被搾取の蓄積 (脱出成功するまでずっと加算)
-            if (game.isExploited || game.isEscaping) {
-                game.currentBeExploitedSum += game.currentReward;
+            const chanceToDie = 0.01 * (game.rank + 1);
+            game.risk = Math.min(100, game.risk + chanceToDie);
+            if (Math.random() * 100 < game.risk) {
+                game.isNextDeath = true;
             }
 
+            let baseGain = (game.isExploited || game.isEscaping) ? 0 : (game.isNextDeath ? game.currentReward * 0.5 : game.currentReward);
+            if (game.isExploited || game.isEscaping) { game.currentBeExploitedSum += game.currentReward; }
             let exploitGain = game.isTargetCaught ? (baseGain * (exploit / 10)) : 0;
             if (exploitGain > 0) game.currentDoExploitedSum += exploitGain;
-
             let gain = baseGain + exploitGain;
             game.money += gain; game.totalMoney += gain; game.periodGain += gain; 
             game.currentReward += game.rewardIncRate;
             const riskFactor = 1 + (exploit / 20);
-            game.risk = Math.min(99.9, Math.max(0, game.risk + ((0.01 * (game.rank + 1)) + game.riskIncRate) * riskFactor));
+            game.risk = Math.min(100, Math.max(0, game.risk + (game.riskIncRate * riskFactor)));
             saveGame(); updateUI();
         };
 
         dom.payTaxBtn.onclick = () => {
             const tax = Math.ceil(game.periodGain * (game.risk / 100));
             if (game.money >= tax) {
-                game.money -= tax;
-                // 上納金も「脱出するまでの一人の搾取」の一部として加算
-                game.currentBeExploitedSum += tax;
-                game.periodGain = 0; game.isTaxTime = false;
+                game.money -= tax; game.currentBeExploitedSum += tax; game.periodGain = 0; game.isTaxTime = false;
                 saveGame(); updateUI();
             } else { processDeathOrRetire("【未払い破綻】"); }
         };
 
-        // --- 以降、UI制御・ショップ等は共通 ---
         function switchTab(idx) { game.currentTab = idx; dom.tabs.forEach((btn, i) => btn.classList.toggle('active', i === idx)); renderShop(); }
         dom.exploitSlider.oninput = (e) => { game.exploitRate = parseInt(e.target.value); dom.exploitVal.innerText = game.exploitRate; saveGame(); };
         dom.preventFleeBtn.onclick = () => { game.isTargetCaught = true; game.targetFleeing = false; game.currentDoExploitedSum = 0; saveGame(); updateUI(); };
         function showTaxUI() { game.isTaxTime = true; const tax = Math.ceil(game.periodGain * (game.risk / 100)); dom.taxAmountDisp.innerText = tax.toLocaleString(); updateUI(); }
         dom.taxRetireBtn.onclick = () => { processDeathOrRetire("【徴収時リタイア】"); };
-        dom.throughBtn.onclick = () => { if (game.isTaxTime) return; if (game.isNextDeath) { game.isNextDeath = false; game.thruSucc++; } else { game.currentReward = Math.max(1, game.currentReward * 0.8); game.thruFail++; } saveGame(); updateUI(); };
+        
+        dom.throughBtn.onclick = () => { 
+            if (game.isTaxTime) return; 
+            if (game.isNextDeath) { 
+                game.isNextDeath = false; 
+                game.thruSucc++; 
+            } else { 
+                game.currentReward = 1.0;
+                game.thruFail++; 
+            } 
+            saveGame(); updateUI(); 
+        };
+        
         function renderShop() {
             dom.shop.innerHTML = ""; const r = game.rank + 1;
             let createItem = (tabIdx, itemIdx, label, baseCost, onClick) => {
@@ -352,24 +358,55 @@
                 dom.shop.appendChild(div);
             };
             if (game.currentTab === 0) createItem(0, 0, `次なる搾取へ`, Math.floor(200000 * Math.pow(1.1, game.rank)), () => { game.rank++; processRebirth(); });
-            else if (game.currentTab === 1) for(let i=0; i<10; i++) createItem(1, i, `報酬:+${((i+1)*0.05).toFixed(2)}/リスク:+${((i+1)*2.0).toFixed(1)}`, 300*(i+1)*r, () => { game.currentReward += (i+1)*0.05; game.risk = Math.min(99.9, game.risk + (i+1)*2.0); });
+            else if (game.currentTab === 1) for(let i=0; i<10; i++) createItem(1, i, `報酬:+${((i+1)*0.05).toFixed(2)}/リスク:+${((i+1)*2.0).toFixed(1)}`, 300*(i+1)*r, () => { game.currentReward += (i+1)*0.05; game.risk = Math.min(100, game.risk + (i+1)*2.0); });
             else if (game.currentTab === 2) for(let i=0; i<10; i++) createItem(2, i, `報酬:-${((i+1)*2.0).toFixed(1)}/リスク:-${((i+1)*0.1).toFixed(2)}`, 500*(i+1)*r, () => { game.currentReward = Math.max(1, game.currentReward - (i+1)*2.0); game.risk = Math.max(0, game.risk - (i+1)*0.1); });
             else if (game.currentTab === 3) for(let i=0; i<10; i++) createItem(3, i, `報酬増率:+${((i+1)*0.002).toFixed(4)}/リスク増率:+${((i+1)*0.05).toFixed(3)}`, 1000*(i+1)*r, () => { game.rewardIncRate += (i+1)*0.002; game.riskIncRate += (i+1)*0.05; });
             else if (game.currentTab === 4) for(let i=0; i<10; i++) createItem(4, i, `報酬増率:-${((i+1)*0.01).toFixed(3)}/リスク増率:-${((i+1)*0.001).toFixed(4)}`, 2000*(i+1)*r, () => { game.rewardIncRate = Math.max(0, game.rewardIncRate - (i+1)*0.01); game.riskIncRate -= (i+1)*0.001; });
         }
-        function processRebirth() { game.risk = 0; game.isNextDeath = false; game.rewardIncRate = 0.01; game.riskIncRate = 0; game.currentReward = 1.0; game.isEscaping = false; game.isExploited = false; game.isTargetCaught = false; game.targetFleeing = false; saveGame(); updateUI(); }
+        function processRebirth() { game.risk = 0; game.isNextDeath = false; game.rewardIncRate = 0.01; game.riskIncRate = 0.01; game.currentReward = 1.0; game.isEscaping = false; game.isExploited = false; game.isTargetCaught = false; game.targetFleeing = false; saveGame(); updateUI(); }
         dom.retireTrigger.onclick = () => { if(!game.isTaxTime) dom.modal.style.display = 'block'; };
         dom.cancelRetire.onclick = () => { dom.modal.style.display = 'none'; };
-        dom.confirmRetire.onclick = () => { processDeathOrRetire("【自発リタイア】"); };
+        dom.confirmRetire.onclick = () => {
+            const checked = Array.from(document.querySelectorAll('input[name="reason"]:checked')).map(el => el.value);
+            const reasonStr = checked.length > 0 ? ` [${checked.join(", ")}]` : " [理由なし]";
+            processDeathOrRetire("【自発リタイア】" + reasonStr);
+        };
+
         const canvas = document.getElementById('visibility-canvas'), ctx = canvas.getContext('2d');
-        function animatePulse() {
-            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-            if (game.isTaxTime) { game.bgRed += 2; document.body.style.backgroundColor = `rgb(${Math.floor((Math.sin(game.bgRed * 0.1) + 1) * 127)}, 0, 0)`; } 
-            else if (game.isTargetCaught) { document.body.style.backgroundColor = "#020"; }
-            else document.body.style.backgroundColor = "black";
-            ctx.clearRect(0,0,canvas.width,canvas.height); requestAnimationFrame(animatePulse);
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+        function animateHeartbeat(time) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let bodyBg = "black";
+            if (game.isTaxTime) { 
+                game.bgRed += 2; 
+                bodyBg = `rgb(${Math.floor((Math.sin(game.bgRed * 0.1) + 1) * 60)}, 0, 0)`; 
+            } else if (game.isTargetCaught) { bodyBg = "#020"; }
+            document.body.style.backgroundColor = bodyBg;
+            const bpm = 60 + (game.risk * 2); 
+            const period = (60 / bpm) * 1000;
+            const t = (time % period) / period;
+            let pulse = 0;
+            if (t < 0.12) pulse = Math.sin((t / 0.12) * Math.PI) * 0.7;
+            else if (t < 0.2) pulse = 0.15;
+            else if (t < 0.45) pulse = Math.sin(((t - 0.2) / 0.25) * Math.PI) * 1.0;
+            const centerX = canvas.width / 2; const centerY = canvas.height / 2;
+            const baseRadius = Math.min(canvas.width, canvas.height) * 0.25;
+            const finalRadius = baseRadius * (1 + pulse * 0.4) * (1 + (game.risk / 60));
+            const glowStrength = 20 + (pulse * 50);
+            ctx.shadowBlur = glowStrength; ctx.shadowColor = "#FF00FF";
+            ctx.beginPath(); ctx.arc(centerX, centerY, finalRadius, 0, Math.PI * 2);
+            const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, finalRadius);
+            grad.addColorStop(0, '#FF00FF'); grad.addColorStop(0.7, '#8A2BE2'); grad.addColorStop(1, '#4B0082');
+            ctx.fillStyle = grad; ctx.fill();
+            ctx.strokeStyle = `rgba(255, 0, 255, ${0.4 + pulse * 0.6})`;
+            ctx.lineWidth = 15 * pulse + 5; ctx.stroke();
+            requestAnimationFrame(animateHeartbeat);
         }
-        loadGame(); animatePulse();
+
+        loadGame();
+        requestAnimationFrame(animateHeartbeat);
     </script>
 </body>
 </html>
